@@ -59,6 +59,24 @@
       .reader details{border:1px solid #223059;border-radius:8px;background:#0b1426;padding:8px;margin:6px 0}
       .reader summary{cursor:pointer;color:#cfe2ff}
       .reader .kw{color:#9ecbff}
+      .refs h2{font-size:14px;margin:10px 0 6px;color:#a9c3ff}
+      .refs ul{list-style:disc;margin:4px 0 8px 18px;padding:0;color:#cfe2ff;font-size:12px}
+      .refs li{margin:2px 0}
+      .refs a{color:#9ecbff}
+      .signals{margin-top:12px}
+      .signals h2{font-size:14px;margin:8px 0 6px;color:#a9c3ff}
+      .signals input{width:100%;background:#0a1528;border:1px solid #23305a;border-radius:8px;color:#d7e7ff;padding:6px 8px;margin-bottom:6px}
+      .sigItem{border:1px solid #23305a;border-radius:8px;padding:6px;background:#0b1426;margin:6px 0}
+      .sigItem .name{color:#cfe2ff;font-size:12px}
+      .sigItem .desc{color:#97abd0;font-size:11px;margin-top:2px}
+      .sigItem .used{color:#8aa0c2;font-size:11px;margin-top:4px}
+      .attr h2{font-size:14px;margin:10px 0 6px;color:#a9c3ff}
+      .attr .row{display:flex;gap:6px;align-items:center}
+      .attr .chip{justify-content:space-between}
+      .attrBar{height:16px;border:1px solid #23305a;border-radius:8px;display:flex;overflow:hidden;background:#0a1420}
+      .attrBar .pos{background:linear-gradient(90deg,#00ff9c,#00e5ff);height:100%}
+      .attrBar .neg{background:linear-gradient(90deg,#ff6b6b,#ff3d81);height:100%}
+      .small{font-size:11px}
       /* code navigator modal */
       #codeNav{position:fixed;inset:0;background:rgba(2,6,12,.65);backdrop-filter:blur(6px);z-index:9;display:none}
       #codeNav .cWrap{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:min(1100px,92vw);height:min(70vh,780px);display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#0c1428,#0a1224);border:1px solid #23305a;border-radius:12px;box-shadow:0 0 0 1px #0008, 0 0 50px #0af3;padding:12px}
@@ -125,6 +143,8 @@
           </span>
           <button class="btn" id="btnGlossary">単語帳</button>
           <button class="btn" id="btnCodeNav">コードナビ</button>
+          <button class="btn" id="btnSavePng">🖼 PNG書き出し</button>
+          <button class="btn" id="btnLayoutReset">↺ レイアウト初期化</button>
           <a class="btn" id="btnGitHub" href="https://github.com/kazuph/the-algorithm" target="_blank" rel="noopener">GitHub ↗︎</a>
         </div>
       </header>
@@ -183,6 +203,23 @@
           <p>上振れ: 初動エンゲージの速さ、多様な反応種別、近縁からの社会的証拠、視聴維持（動画/長文）、トピック適合、新規性など。</p>
           <p>下振れ: 重複/既読、作者連投による多様性不足、フィードバック疲労、低評価の蓄積、可視性ラベル（法令/安全）、外部リンクによる離脱（仮説）。</p>
           <p class="tip">右パネル「到達倍率モデル（簡易）」で、これら要因を調整して露出感への影響を確認できます。</p>
+          <details>
+            <summary>FAQ / よくある誤解</summary>
+            <p><strong>Q. Visibilityはランキングそのもの？</strong><br/>A. いいえ。Visibilityは“表示時の扱い”を決めるルールエンジンで、<em>非表示/ラベル/インタースティシャル/ダウンランク</em>等を指示します。順位付け自体はランカーで行われます。</p>
+            <p><strong>Q. TimelineRankerは重ランクをする？</strong><br/>A. いいえ。検索スコア等を用いた<em>軽い整形/トランケーション</em>が中心で、Heavy RankはHome Mixer側のScoringパイプラインです。</p>
+            <p><strong>Q. Out-of-Networkは何で作られる？</strong><br/>A. UTEG（協調フィルタ）、CR‑Mixer（混合/軽ランク）、FRS（将来フォロー見込みの著者由来）など。Earlybirdは主にIn‑Networkを担当します。</p>
+            <p><strong>Q. 固定倍率でスコアを決めている？</strong><br/>A. いいえ。本番は学習モデル（多数の特徴）とオンライン制御の組み合わせです。本教材の倍率/寄与UIは直感学習用の<em>玩具</em>です。</p>
+          </details>
+          <details>
+            <summary>学習の手引き / 読む順序の例</summary>
+            <p>1) Home MixerのREADME→パイプライン全体像、2) USS/UUA→信号の実体、3) 候補生成（Earlybird/UTEG/CR‑Mixer/FRS）→入口の多様性、4) 特徴量（GFS/RepMgr/RSX）→“盛り付け”、5) Visibility→表示制御。</p>
+          </details>
+        </div>
+        <div class="signals">
+          <h2>シグナル探索（Candidate Signals）</h2>
+          <input id="sigSearch" placeholder="signal名や説明で検索…" />
+          <div id="sigBody"></div>
+          <div class="tip small">出典: RETREIVAL_SIGNALS.md（本リポジトリ）</div>
         </div>
       </aside>
 
@@ -200,6 +237,10 @@
         </div>
         <div class="note" style="margin-top:10px">
           参考: <code>README.md</code>、<code>home-mixer/README.md</code>、<code>timelineranker/README.md</code>、<code>cr-mixer/README.md</code>、<code>user-signal-service/README.md</code>、<code>visibilitylib/README.md</code>、<code>RETREIVAL_SIGNALS.md</code>
+        </div>
+        <div id="phaseRefs" class="refs">
+          <h2>このフェーズを読む</h2>
+          <ul id="phaseRefList"></ul>
         </div>
         <hr style="border:none;border-top:1px solid #223059;margin:10px 0"/>
         <h2>到達倍率モデル（簡易）</h2>
@@ -243,6 +284,36 @@
               <button class="btn" data-preset="thread">プリセット: スレッド</button>
               <button class="btn" data-preset="reset">リセット</button>
             </div>
+          </div>
+        </div>
+        <div class="attr">
+          <h2>スコア寄与（玩具）</h2>
+          <div class="note">擬似的な寄与の可視化。実際のモデルは多数の特徴で構成されています。</div>
+          <div class="row" style="justify-content:space-between;margin:6px 0">
+            <span>予測スコア</span>
+            <strong id="attrScore">0.50</strong>
+          </div>
+          <div class="attrBar"><div id="attrPos" class="pos" style="width:50%"></div><div id="attrNeg" class="neg" style="width:0%"></div></div>
+          <div class="stack" style="margin-top:8px">
+            <label>社会的証拠 <input type="range" min="0" max="3" step="0.1" value="1.2" data-w="w_sp"> <span class="mut" id="wval-w_sp">1.2</span></label>
+            <label>類似度（埋め込み） <input type="range" min="0" max="3" step="0.1" value="1.1" data-w="w_sim"> <span class="mut" id="wval-w_sim">1.1</span></label>
+            <label>著者親和（RealGraph） <input type="range" min="0" max="3" step="0.1" value="1.0" data-w="w_auth"> <span class="mut" id="wval-w_auth">1.0</span></label>
+            <label>内容品質（Proxy） <input type="range" min="0" max="3" step="0.1" value="1.0" data-w="w_quality"> <span class="mut" id="wval-w_quality">1.0</span></label>
+            <label>滞在/視聴 <input type="range" min="0" max="3" step="0.1" value="1.0" data-w="w_dwell"> <span class="mut" id="wval-w_dwell">1.0</span></label>
+            <label>トピック合致 <input type="range" min="0" max="3" step="0.1" value="1.0" data-w="w_topic"> <span class="mut" id="wval-w_topic">1.0</span></label>
+            <label>鮮度 <input type="range" min="0" max="3" step="0.1" value="1.0" data-w="w_fresh"> <span class="mut" id="wval-w_fresh">1.0</span></label>
+            <div class="row" style="margin-top:4px">
+              <label>可視性/安全ペナルティ <input type="range" min="0" max="1" step="0.05" value="0" data-w="p_safety"> <span class="mut" id="wval-p_safety">0.00</span></label>
+              <label>疲労ペナルティ <input type="range" min="0" max="0.4" step="0.02" value="0" data-w="p_fatigue"> <span class="mut" id="wval-p_fatigue">0.00</span></label>
+              <label>重複ペナルティ <input type="range" min="0" max="0.4" step="0.02" value="0" data-w="p_dedupe"> <span class="mut" id="wval-p_dedupe">0.00</span></label>
+            </div>
+            <div class="row" style="flex-wrap:wrap;margin-top:6px">
+              <button class="btn" data-persona="sports">プリセット: スポーツファン</button>
+              <button class="btn" data-persona="tech">プリセット: テック</button>
+              <button class="btn" data-persona="music">プリセット: 音楽</button>
+              <button class="btn" data-persona="reset">リセット</button>
+            </div>
+            <div class="note small" id="attrTop">Top drivers: ー</div>
           </div>
         </div>
       </aside>
@@ -461,6 +532,7 @@
       // フェーズ遷移: 光の流入 (周辺から中心へのフレア)
       for(let i=0;i<60;i++) spawnRadialBurst();
       if(manual) lastTime = performance.now();
+      renderPhaseRefs();
     }
 
     // ============= 光の流入 (フェーズ効果) =============
@@ -598,6 +670,8 @@
     const modeForYou = document.getElementById('modeForYou');
     const modeFollowing = document.getElementById('modeFollowing');
     const modePush = document.getElementById('modePush');
+    const btnSavePng = document.getElementById('btnSavePng');
+    const btnLayoutReset = document.getElementById('btnLayoutReset');
 
     btnPlay.addEventListener('click',()=>{
       playing = !playing; btnPlay.textContent = playing ? '⏸ 一時停止' : '⏵ 再生';
@@ -608,6 +682,10 @@
     btnReset.addEventListener('click',()=>{ setPhase(0,true); playing=false; btnPlay.textContent='⏵ 再生'; });
     btnGlossary.addEventListener('click',()=>{ openGlossary(); });
     btnCodeNav.addEventListener('click',()=>{ openCodeNav(); });
+    btnSavePng.addEventListener('click',()=>{
+      try { const url = canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download='buzz-flow.png'; a.click(); } catch(e){}
+    });
+    btnLayoutReset.addEventListener('click',()=>{ localStorage.removeItem('nodePositions'); location.reload(); });
     function setMode(m){
       currentMode = m;
       modeForYou.classList.toggle('on', m==='foryou');
@@ -780,6 +858,139 @@
     }
     loadNodePositions();
 
+    // ============= フェーズ別 参考コードリンク =============
+    const phaseRefs = {
+      init: [],
+      post: [
+        {label:'USS README', path:'user-signal-service/README.md'},
+        {label:'UUA README', path:'unified_user_actions/README.md'}
+      ],
+      early: [
+        {label:'USS README', path:'user-signal-service/README.md'},
+        {label:'RealGraph README', path:'src/scala/com/twitter/interaction_graph/README.md'}
+      ],
+      cand: [
+        {label:'Home Mixer README', path:'home-mixer/README.md'},
+        {label:'CR‑Mixer README', path:'cr-mixer/README.md'},
+        {label:'UTEG README', path:'src/scala/com/twitter/recos/user_tweet_entity_graph/README.md'},
+        {label:'TimelineRanker README', path:'timelineranker/README.md'},
+        {label:'FRS README', path:'follow-recommendations-service/README.md'}
+      ],
+      feat: [
+        {label:'Graph Feature Service', path:'graph-feature-service/README.md'},
+        {label:'Representation Manager', path:'representation-manager/README.md'},
+        {label:'Representation Scorer', path:'representation-scorer/README.md'}
+      ],
+      rank: [
+        {label:'ScoredTweetsModelScoringPipelineConfig.scala', path:'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/scoring_pipeline/ScoredTweetsModelScoringPipelineConfig.scala'}
+      ],
+      mix: [
+        {label:'ForYouScoredTweetsMixerPipelineConfig.scala', path:'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/for_you/ForYouScoredTweetsMixerPipelineConfig.scala'},
+        {label:'Visibilitylib README', path:'visibilitylib/README.md'}
+      ],
+      dist: [
+        {label:'Pushservice README', path:'pushservice/README.md'}
+      ],
+      spread: [
+        {label:'SimClusters‑ANN README', path:'simclusters-ann/README.md'},
+        {label:'Topic Social Proof README', path:'topic-social-proof/README.md'}
+      ],
+      buzz: [
+        {label:'Home Mixer README', path:'home-mixer/README.md'}
+      ]
+    };
+    function renderPhaseRefs(){
+      const list = document.getElementById('phaseRefList'); if(!list) return;
+      const p = phases[phaseIndex]; const arr = phaseRefs[p.key]||[];
+      list.innerHTML='';
+      arr.forEach(it=>{
+        const li=document.createElement('li');
+        const local = document.createElement('a'); local.href = '../'+it.path; local.target='_blank'; local.rel='noopener'; local.textContent=it.label+'（ローカル）';
+        const gh = document.createElement('a'); gh.href = 'https://github.com/kazuph/the-algorithm/tree/main/'+it.path; gh.target='_blank'; gh.rel='noopener'; gh.textContent='GitHub';
+        li.appendChild(local); li.appendChild(document.createTextNode(' / ')); li.appendChild(gh); list.appendChild(li);
+      });
+    }
+    renderPhaseRefs();
+
+    // ============= シグナル探索（RETREIVAL_SIGNALS.md要約） =============
+    const signalsData = [
+      {name:'Author Follow', desc:'ユーザーが明示的にフォローしているアカウント。', used:['USS','FRS','SimClusters','TwHIN'], nodes:['uss','frs','users']},
+      {name:'Author Unfollow', desc:'最近のアンフォロー。', used:['USS'], nodes:['uss']},
+      {name:'Author Mute', desc:'ミュート。', used:['USS','FRS'], nodes:['uss','frs']},
+      {name:'Author Block', desc:'ブロック。', used:['USS','FRS'], nodes:['uss','frs']},
+      {name:'Tweet Favorite', desc:'いいね。多くの箇所で特徴/ラベルに使用。', used:['USS','SimClusters','TwHIN','UTEG','FRS','Light'], nodes:['uss','uteg','lightr','users']},
+      {name:'Retweet', desc:'リツイート。', used:['USS','UTEG','FRS','Light'], nodes:['uss','uteg','lightr']},
+      {name:'Quote Tweet', desc:'引用。', used:['USS','UTEG','FRS','Light'], nodes:['uss','uteg','lightr']},
+      {name:'Reply', desc:'返信。', used:['USS','UTEG','Light'], nodes:['uss','uteg','lightr']},
+      {name:'Tweet Click', desc:'詳細クリック。', used:['USS','FRS','Light(Labels)'], nodes:['uss','lightr']},
+      {name:'Video Watch', desc:'一定秒/割合の視聴。', used:['USS','SimClusters','Light(Labels)'], nodes:['uss','lightr','users']},
+      {name:'Notification Open', desc:'通知開封。', used:['USS','SimClusters','TwHIN','FRS'], nodes:['uss','distribution','users']},
+      {name:'Ntab Click', desc:'通知タブクリック。', used:['USS','SimClusters','TwHIN'], nodes:['uss','users']},
+      {name:'AddressBook', desc:'アドレス帳の著者ID。', used:['FRS'], nodes:['frs']}
+    ];
+    function renderSignals(){
+      const body = document.getElementById('sigBody'); const q = (document.getElementById('sigSearch')?.value||'').toLowerCase();
+      if(!body) return; body.innerHTML='';
+      signalsData.filter(s=>!q || (s.name+' '+s.desc).toLowerCase().includes(q)).forEach(sig=>{
+        const d=document.createElement('div'); d.className='sigItem';
+        d.innerHTML = `<div class="name">${sig.name}</div><div class="desc">${sig.desc}</div><div class="used">Used: ${sig.used.join(', ')}</div>`;
+        d.addEventListener('click',()=>{ if(sig.nodes?.length) highlightNode(sig.nodes[0]); pulseEdgesForNodes(sig.nodes||[]); });
+        body.appendChild(d);
+      });
+    }
+    function pulseEdgesForNodes(nodeIds){
+      const set = new Set(nodeIds);
+      edges.forEach(e=>{ if(set.has(e.a.id)||set.has(e.b.id)){ for(let i=0;i<30;i++) spawnOnEdge(e); } });
+    }
+    document.getElementById('sigSearch')?.addEventListener('input', renderSignals);
+    renderSignals();
+
+    // ============= スコア寄与（玩具） =============
+    const weights = { w_sp:1.2, w_sim:1.1, w_auth:1.0, w_quality:1.0, w_dwell:1.0, w_topic:1.0, w_fresh:1.0, p_safety:0.0, p_fatigue:0.0, p_dedupe:0.0 };
+    function updateAttr(){
+      const posParts = [
+        ['社会的証拠', weights.w_sp * factors.socialProof],
+        ['類似度', weights.w_sim * 1.0],
+        ['著者親和', weights.w_auth * 1.0],
+        ['内容品質', weights.w_quality * 1.0],
+        ['滞在/視聴', weights.w_dwell * factors.dwell],
+        ['トピック', weights.w_topic * factors.topicFit],
+        ['鮮度', weights.w_fresh * factors.novelty]
+      ];
+      const negParts = [
+        ['可視性', weights.p_safety],
+        ['疲労', weights.p_fatigue],
+        ['重複', weights.p_dedupe]
+      ];
+      const posSum = posParts.reduce((s,[_n,v])=>s+v,0);
+      const negSum = negParts.reduce((s,[_n,v])=>s+v,0);
+      const score = Math.max(0, Math.min(1, (0.5*posSum)/(1+posSum) - negSum*0.2 + 0.5));
+      const posPct = Math.max(0, Math.min(100, 100*(posSum/(posSum+1)) ));
+      const negPct = Math.max(0, Math.min(100, 100*(negSum/3) ));
+      document.getElementById('attrScore').textContent = score.toFixed(2);
+      document.getElementById('attrPos').style.width = Math.max(8,posPct).toFixed(1)+'%';
+      document.getElementById('attrNeg').style.width = Math.min(92,negPct).toFixed(1)+'%';
+      // top drivers
+      const top = posParts.slice().sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,_])=>n);
+      document.getElementById('attrTop').textContent = 'Top drivers: '+top.join(', ');
+    }
+    document.querySelectorAll('[data-w]')?.forEach(el=>{
+      const key = el.getAttribute('data-w'); const span = document.getElementById('wval-'+key);
+      const update=()=>{ weights[key]=Number(el.value); if(span) span.textContent = weights[key].toFixed(2); updateAttr(); };
+      el.addEventListener('input', update);
+    });
+    document.querySelectorAll('button[data-persona]')?.forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const p = btn.getAttribute('data-persona');
+        function setW(k,v){ const el=document.querySelector(`[data-w="${k}"]`); if(el){ el.value=v; el.dispatchEvent(new Event('input')); } }
+        if(p==='reset'){ ['w_sp','w_sim','w_auth','w_quality','w_dwell','w_topic','w_fresh'].forEach((k,i)=>setW(k,1.0)); setW('w_sp',1.2); setW('w_sim',1.1); ['p_safety','p_fatigue','p_dedupe'].forEach(k=>setW(k,0)); return; }
+        if(p==='sports'){ setW('w_topic',1.6); setW('w_sp',1.4); setW('w_sim',1.2); }
+        if(p==='tech'){ setW('w_topic',1.6); setW('w_sim',1.4); setW('w_auth',1.1); }
+        if(p==='music'){ setW('w_topic',1.6); setW('w_dwell',1.3); setW('w_sp',1.2); }
+      });
+    });
+    updateAttr();
+
     // ============= 用語帳（Glossary） =============
     const glossaryData = [
       {id:'tweet', term:'投稿（ポスト）', desc:'X上の新規コンテンツ。テキスト/画像/動画/リンクなど形式を問わず起点。', cat:'コンテンツ', node:'tweet'},
@@ -822,7 +1033,8 @@
     window.addEventListener('keydown', (e)=>{
       if(e.key==='Escape'&& gEl.style.display==='block') closeGlossary();
       if(e.key.toLowerCase()==='g' && gEl.style.display!=='block') openGlossary();
-      if(e.key.toLowerCase()==='c' && cEl.style.display!=='block') openCodeNav();
+      const _cEl = document.getElementById('codeNav');
+      if(e.key.toLowerCase()==='c' && _cEl && _cEl.style.display!=='block') openCodeNav();
     });
     gEl.addEventListener('click', (e)=>{ if(e.target===gEl) closeGlossary(); });
     gSearch?.addEventListener('input', renderGlossary);
