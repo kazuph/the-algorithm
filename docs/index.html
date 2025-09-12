@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Xでバズが生まれるフロー — サイバーシミュレーション図</title>
+    <style>
+      :root{
+        --bg:#0b0f1a;
+        --grid:#0f1730;
+        --text:#d7e7ff;
+        --muted:#8aa0c2;
+        --neon-c1:#00e5ff;
+        --neon-c2:#7c4dff;
+        --neon-c3:#ff3d81;
+        --neon-c4:#00ff9c;
+        --warning:#ffd166;
+      }
+      *{box-sizing:border-box}
+      html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 70% 30%, #0f1630 0%, var(--bg) 55%) no-repeat var(--bg);color:var(--text);font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;}
+      .wrap{display:grid;grid-template-columns: 320px 1fr 320px;grid-template-rows:auto auto 1fr auto;gap:12px;min-height:100vh;padding:14px}
+      header{grid-column:1/4;display:flex;gap:12px;align-items:center;justify-content:space-between}
+      header h1{font-size:18px;letter-spacing:0.04em;margin:0;text-shadow:0 0 6px #58f,0 0 12px #58f3}
+      header .controls{display:flex;gap:8px;align-items:center}
+      .btn{background:transparent;border:1px solid #2a355a;color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer;backdrop-filter: blur(6px);transition: .15s; box-shadow: inset 0 0 0 1px #0003}
+      .btn:hover{border-color:#4966ff80;box-shadow:0 0 10px #4a6fff55, inset 0 0 12px #4a6fff22}
+      .btn.primary{border-color:var(--neon-c1);color:var(--neon-c1);text-shadow:0 0 8px #0ef8}
+      .panel{background:linear-gradient(180deg,#0c12254d,#0a101d33);border:1px solid #1a2242;box-shadow:0 0 0 1px #0003, inset 0 0 60px #0a143088;border-radius:12px;padding:12px}
+      .left{grid-row:3/4}
+      .right{grid-row:3/4}
+      .legend h2, .phase h2{font-size:14px;margin:0 0 8px;color:#a9c3ff}
+      .legend ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+      .chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid #223059;background:#0c1426}
+      .dot{width:10px;height:10px;border-radius:50%}
+      .c1{background:var(--neon-c1);box-shadow:0 0 10px var(--neon-c1)}
+      .c2{background:var(--neon-c2);box-shadow:0 0 10px var(--neon-c2)}
+      .c3{background:var(--neon-c3);box-shadow:0 0 10px var(--neon-c3)}
+      .c4{background:var(--neon-c4);box-shadow:0 0 10px var(--neon-c4)}
+      .mut{color:var(--muted)}
+      .phase p{margin:.35rem 0;color:#cfe2ff}
+      .buzz{margin-top:12px}
+      .meter{height:180px;border:1px solid #25305a;border-radius:10px;padding:6px;display:flex;align-items:flex-end;background:linear-gradient(180deg,#0b1230,#090f22)}
+      .bar{width:100%;height:8%;background:linear-gradient(90deg,#0ff,#9f7cff);box-shadow:0 0 16px #58f8, 0 0 32px #0ff3,inset 0 0 12px #fff2;border-radius:6px;transition: height .8s cubic-bezier(.2,.9,.2,1)}
+      .meter .ticks{position:relative;inset:0}
+      .meter .ticks::before{content:"";position:absolute;left:0;right:0;top:25%;height:1px;background:#ffffff11}
+      .meter .ticks::after{content:"";position:absolute;left:0;right:0;top:60%;height:1px;background:#ffffff11}
+      .muted{color:#9bb0d0}
+      canvas#sim{grid-column:2/3;grid-row:3/4;width:100%;height:100%;border-radius:14px;border:1px solid #1a2242;background:radial-gradient(1200px 700px at 50% 40%, #0c1530 0%, #0b0f1a 62%);box-shadow:inset 0 0 80px #08112a}
+      .gridOverlay{pointer-events:none;position:absolute;inset:0;border-radius:14px;overflow:hidden}
+      .gridOverlay::before{content:"";position:absolute;inset:0;background-image: linear-gradient(transparent 31px, #0b1a3a88 32px), linear-gradient(90deg, transparent 31px, #0b1a3a88 32px); background-size:32px 32px;opacity:.18}
+      .reader{margin-top:10px;border-top:1px solid #223059;padding-top:10px}
+      .reader h3{margin:6px 0 6px;color:#a9c3ff;font-size:13px}
+      .reader p{margin:6px 0;color:#cfe2ff;font-size:12px;line-height:1.55}
+      .reader .tip{color:#97abd0;font-size:11px}
+      .reader details{border:1px solid #223059;border-radius:8px;background:#0b1426;padding:8px;margin:6px 0}
+      .reader summary{cursor:pointer;color:#cfe2ff}
+      .reader .kw{color:#9ecbff}
+      .timeline{grid-column:1/4;grid-row:2/3;display:flex;gap:8px;align-items:center;position:sticky;top:10px;z-index:5}
+      .timeline .phaseItem{flex:1;padding:6px 8px;border:1px solid #223059;border-radius:8px;background:#0a1223;position:relative;color:#b8c9ef}
+      .timeline .phaseItem.active{border-color:#4b6bff80;box-shadow:0 0 12px #4b6bff55}
+      .timeline .phaseItem .glow{position:absolute;inset:0;border-radius:8px;background: radial-gradient(500px 60px at 50% 110%, #4bf 0%, transparent 60%);opacity:0;transition: opacity .5s}
+      .timeline .phaseItem.active .glow{opacity:.5}
+      .timeline .phaseItem{cursor:pointer}
+      .phaseFlash{pointer-events:none;position:fixed;inset:0;background:radial-gradient(circle at 50% 50%, rgba(0,255,255,.2), rgba(0,0,0,0) 45%), radial-gradient(circle at 20% 30%, rgba(124,77,255,.18), rgba(0,0,0,0) 35%), radial-gradient(circle at 80% 70%, rgba(0,255,156,.16), rgba(0,0,0,0) 40%);mix-blend-mode:screen;opacity:0;transition:opacity .6s}
+      .phaseFlash.on{opacity:1}
+      .phaseBadge{position:fixed;left:50%;top:14%;transform:translate(-50%,-50%);font-size:28px;letter-spacing:.1em;color:#eaf3ff;text-shadow:0 0 16px #0ff8, 0 0 28px #7c4dff88;opacity:0;transition:opacity .6s}
+      .phaseBadge.on{opacity:1}
+      .glitch{position:relative}
+      .glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;right:0;top:0;filter:blur(.6px)}
+      .glitch::before{color:#7c4dff;transform:translate(2px,0)}
+      .glitch::after{color:#00e5ff;transform:translate(-2px,0)}
+      #tip{position:fixed;pointer-events:none;z-index:10;max-width:360px;background:linear-gradient(180deg,#0c1428,#0a1020);border:1px solid #223059;border-radius:10px;padding:8px 10px;color:#d9e7ff;box-shadow:0 0 0 1px #0005, 0 0 18px #4bf2}
+      #tip .title{font-size:12px;color:#a9c3ff;margin-bottom:4px}
+      #tip .body{font-size:12px;line-height:1.45;color:#cfe2ff}
+      /* glossary modal */
+      #glossary{position:fixed;inset:0;background:rgba(2,6,12,.65);backdrop-filter:blur(6px);z-index:9;display:none}
+      #glossary .gWrap{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:min(1100px,92vw);height:min(70vh,780px);display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#0c1428,#0a1224);border:1px solid #23305a;border-radius:12px;box-shadow:0 0 0 1px #0008, 0 0 50px #0af3;padding:12px}
+      #glossary .gHead{display:flex;gap:8px;align-items:center;color:#cfe2ff}
+      #glossary .gHead input{flex:1;min-width:240px;background:#0a1528;border:1px solid #23305a;border-radius:8px;color:#d7e7ff;padding:8px}
+      #glossary .gBody{overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding-right:2px}
+      .term{border:1px solid #23305a;border-radius:10px;padding:10px;background:linear-gradient(180deg,#0c1428,#0a1120)}
+      .term h3{margin:0 0 6px 0;font-size:14px;color:#a9c3ff}
+      .term p{margin:0;color:#cfe2ff;font-size:12px;line-height:1.5}
+      .term .meta{margin-top:6px;color:#97abd0;font-size:11px}
+      footer{grid-column:1/4;color:#93a8cc;opacity:.9}
+      footer a{color:#9ecbff}
+      .note{font-size:12px;line-height:1.45;margin-top:6px}
+      .stack{display:flex;flex-direction:column;gap:6px}
+      @media (max-width: 1080px){
+        .wrap{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto auto}
+        .left,.right,canvas#sim{grid-column:1/2}
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1 class="glitch" data-text="Xでバズが生まれるフロー">Xでバズが生まれるフロー — サイバーシミュレーション</h1>
+        <div class="controls">
+          <button class="btn" id="btnPrev">◀︎ 前へ</button>
+          <button class="btn primary" id="btnPlay">⏵ 再生</button>
+          <button class="btn" id="btnNext">次へ ▶︎</button>
+          <button class="btn" id="btnReset">最初から</button>
+          <button class="btn" id="btnGlossary">単語帳</button>
+          <a class="btn" id="btnGitHub" href="https://github.com/twitter/the-algorithm" target="_blank" rel="noopener">GitHub ↗︎</a>
+        </div>
+      </header>
+
+      <aside class="panel left legend">
+        <h2>凡例 / コンポーネント</h2>
+        <ul class="stack">
+          <li class="chip"><span class="dot c1"></span> データ/信号: USS（User Signal Service：ユーザー行動信号の集約）・UUA 等</li>
+          <li class="chip"><span class="dot c4"></span> 候補生成: Earlybird（検索）, UTEG（User Tweet Entity Graph）, CR‑Mixer, FRS（Follow Recommendations Service）</li>
+          <li class="chip"><span class="dot c2"></span> ランキング: Light Ranker（軽）/ Heavy Ranker（重）</li>
+          <li class="chip"><span class="dot c3"></span> ミキシング/制御: Home Mixer（統合）, Visibility（可視性）, ヒューリスティクス</li>
+        </ul>
+        <p class="mut note">この図は本リポジトリの README などの公開情報に基づく概念シミュレーションです。重み・閾値は可視化目的の擬似値です。</p>
+        <div class="gridOverlay" aria-hidden="true"></div>
+        <div class="reader" id="reader">
+          <h2 style="font-size:14px;color:#a9c3ff;margin:4px 0 6px">読みもの: バズるまでのストーリー</h2>
+          <p class="tip">各項目のタイトルをクリックすると該当フェーズにジャンプします。</p>
+          <details>
+            <summary data-phase="1">1. 投稿（ポスト）— 起点をつくる</summary>
+            <p>コンテンツが <span class="kw">投稿</span> されると、すぐに初期ウインドウで反応速度が観測されます。短時間に「いいね/RT/クリック/リプライ」が集まると、<span class="kw">USS（User Signal Service）</span>へ強い信号として蓄積され、次段の候補生成に有利に働きます。</p>
+            <p class="tip">初動で「誰が」反応するかも重要です。近縁のフォロワーからの反応は <em>In‑Network 社会的証拠</em> として効き目が強くなりがちです。</p>
+          </details>
+          <details>
+            <summary data-phase="2">2. 初期反応（USS蓄積）— 反応の“質と速さ”</summary>
+            <p><span class="kw">USS</span> はユーザー行動を統一形式で集約します。ここでは「量」だけでなく「速さ」「多様性」「関係性（RealGraph/SimClusters）」が効き、<span class="kw">Earlybird（検索）</span>、<span class="kw">UTEG</span>、<span class="kw">CR‑Mixer</span>、<span class="kw">FRS</span> へ信号が流入します。</p>
+          </details>
+          <details>
+            <summary data-phase="3">3. 候補生成（Candidate Generation）— In/Outの両輪</summary>
+            <p><span class="kw">Earlybird</span> は主に In‑Network、<span class="kw">UTEG</span> は相互作用グラフを辿ることで Out‑of‑Network を広げ、<span class="kw">CR‑Mixer</span> が混合と軽ランクを行います。<span class="kw">FRS</span> はフォロー推薦経由の候補を注入します。</p>
+          </details>
+          <details>
+            <summary data-phase="4">4. 特徴量水和（Feature Hydration）— 文脈を“盛る”</summary>
+            <p>ランキングに必要な <span class="kw">~6000</span> の特徴を取得します。<span class="kw">Graph Feature Service</span> のグラフ特徴、<span class="kw">Representation Manager</span> の埋め込み（SimClusters/TwHIN 等）、履歴ベースの統計などが例です。</p>
+          </details>
+          <details>
+            <summary data-phase="5">5. ランキング（Light→Heavy）— 候補を絞る</summary>
+            <p><span class="kw">Light Ranker</span> が大まかに選別し、<span class="kw">Heavy Ranker</span> が本格スコアリングを実施。ユーザーの興味に合う順に整列されます。</p>
+          </details>
+          <details>
+            <summary data-phase="6">6. ミキシング/制御（Home Mixer/Visibility）— 見せ方を整える</summary>
+            <p><span class="kw">Home Mixer</span> が広告やモジュールと混在させ、<span class="kw">Visibility</span> で法令・品質・安全の観点から表示処理（非表示/ラベル/ダウンランク）を適用。<em>重複/既視/作者多様性/疲労</em> といったヒューリスティクスも処理します。</p>
+          </details>
+          <details>
+            <summary data-phase="7">7. 配信（For You/通知/Explore）— 面に届ける</summary>
+            <p>出来上がったリストが <span class="kw">For You</span>、<span class="kw">通知（Pushservice）</span>、<span class="kw">Explore</span> などへ配信。ここでの閲覧や二次反応が再び USS に戻り、循環が生まれます。</p>
+          </details>
+          <details>
+            <summary data-phase="8">8. 波及（再循環・拡散）— ネットワークを伝う</summary>
+            <p>反応がネットワークを伝播すると、コミュニティ（<span class="kw">SimClusters</span>）をまたいで話題が移動。<span class="kw">Topic Social Proof</span> によりトピック文脈も補強されます。</p>
+          </details>
+          <details>
+            <summary data-phase="9">9. バズ確定（臨界）— 臨界点を超える</summary>
+            <p>露出と反応速度が閾値を超えると、拡散が自己維持的に進む “臨界” に到達。シミュレーションでは光流入が最大化します。</p>
+          </details>
+          <h3>上振れ/下振れの代表例</h3>
+          <p>上振れ: 初動エンゲージの速さ、多様な反応種別、近縁からの社会的証拠、視聴維持（動画/長文）、トピック適合、新規性など。</p>
+          <p>下振れ: 重複/既読、作者連投による多様性不足、フィードバック疲労、低評価の蓄積、可視性ラベル（法令/安全）、外部リンクによる離脱（仮説）。</p>
+          <p class="tip">右パネル「到達倍率モデル（簡易）」で、これら要因を調整して露出感への影響を確認できます。</p>
+        </div>
+      </aside>
+
+      <canvas id="sim" aria-label="バズ生成フローのサイバー風シミュレーション"></canvas>
+
+      <aside class="panel right phase">
+        <h2>フェーズ説明</h2>
+        <p id="phaseDesc" class="muted">再生を押すと、投稿からバズ確定までの流れを段階的に可視化します。専門用語や略語は（カッコ内）に短い説明を併記しています。フェーズが進むほど光の流入が増していきます。</p>
+        <div class="buzz">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span>バズメーター</span>
+            <span id="buzzPercent" class="mut">8%</span>
+          </div>
+          <div class="meter"><div class="bar" id="buzzBar"></div><div class="ticks"></div></div>
+        </div>
+        <div class="note" style="margin-top:10px">
+          参考: <code>README.md</code>、<code>home-mixer/README.md</code>、<code>timelineranker/README.md</code>、<code>cr-mixer/README.md</code>、<code>user-signal-service/README.md</code>、<code>visibilitylib/README.md</code>、<code>RETREIVAL_SIGNALS.md</code>
+        </div>
+        <hr style="border:none;border-top:1px solid #223059;margin:10px 0"/>
+        <h2>到達倍率モデル（簡易）</h2>
+        <div id="multUI" class="mult">
+          <div class="note">注意: 実際のランキングは学習モデルによるスコアリングで、固定倍率ではありません。本UIはリポジトリ記載の概念を元にした“玩具モデル”です。</div>
+          <div style="margin:8px 0;display:grid;gap:8px">
+            <div class="chip" style="justify-content:space-between">
+              <span>現在の到達倍率</span>
+              <strong id="reachNow">1.00x</strong>
+            </div>
+            <div class="stack">
+              <div style="font-size:12px;color:#9bb0d0">上振れ要因</div>
+              <label>初動エンゲージ速度 <input type="range" min="1" max="3" step="0.1" value="1.2" data-factor="earlyVelocity"> <span class="mut" id="val-earlyVelocity">1.2x</span></label>
+              <label>In-Network社会的証拠 <input type="range" min="1" max="2.5" step="0.1" value="1.1" data-factor="socialProof"> <span class="mut" id="val-socialProof">1.1x</span></label>
+              <label>作者の信頼度/関係強度 <input type="range" min="1" max="1.8" step="0.1" value="1" data-factor="authorCred"> <span class="mut" id="val-authorCred">1.0x</span></label>
+              <label>トピック適合（関心一致） <input type="range" min="1" max="2" step="0.1" value="1" data-factor="topicFit"> <span class="mut" id="val-topicFit">1.0x</span></label>
+              <label>視聴維持/滞在（動画/長文） <input type="range" min="1" max="1.6" step="0.1" value="1" data-factor="dwell"> <span class="mut" id="val-dwell">1.0x</span></label>
+              <label>新規性ブースト（早期） <input type="range" min="1" max="1.3" step="0.05" value="1" data-factor="novelty"> <span class="mut" id="val-novelty">1.0x</span></label>
+            </div>
+            <div class="stack" style="margin-top:6px">
+              <div style="font-size:12px;color:#9bb0d0">下振れ要因</div>
+              <label>フィードバック疲労 <input type="range" min="0.6" max="1" step="0.05" value="1" data-factor="fatigue"> <span class="mut" id="val-fatigue">1.0x</span></label>
+              <label>重複/既読の抑制 <input type="range" min="0.2" max="1" step="0.05" value="1" data-factor="dedupe"> <span class="mut" id="val-dedupe">1.0x</span></label>
+              <label>作者多様性の制御 <input type="range" min="0.6" max="1" step="0.05" value="1" data-factor="authorDivers"> <span class="mut" id="val-authorDivers">1.0x</span></label>
+              <label>安全ラベル/可視性
+                <select data-factor="safety">
+                  <option value="1">なし (1.0x)</option>
+                  <option value="0.7">軽いラベル (0.7x)</option>
+                  <option value="0.3">警告/制限 (0.3x)</option>
+                  <option value="0">非表示 (0x)</option>
+                </select>
+              </label>
+              <label>低評価/興味なしの蓄積 <input type="range" min="0.1" max="1" step="0.05" value="1" data-factor="negFeedback"> <span class="mut" id="val-negFeedback">1.0x</span></label>
+              <label>外部リンク遷移（仮説） <input type="range" min="0.7" max="1" step="0.05" value="1" data-factor="outlink"> <span class="mut" id="val-outlink">1.0x</span></label>
+              <div class="note">外部リンク影響は本リポジトリに固定係数としては明記されていません。ここではセッション離脱の仮説的要因として任意に操作できます。</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              <button class="btn" data-preset="text">プリセット: テキスト投稿</button>
+              <button class="btn" data-preset="video">プリセット: 動画（高維持）</button>
+              <button class="btn" data-preset="link">プリセット: 外部リンク記事</button>
+              <button class="btn" data-preset="thread">プリセット: スレッド</button>
+              <button class="btn" data-preset="reset">リセット</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="timeline" id="timeline"></div>
+      <div id="tip" style="display:none"><div class="title"></div><div class="body"></div></div>
+
+      <div class="phaseFlash" id="phaseFlash" aria-hidden="true"></div>
+      <div class="phaseBadge glitch" id="phaseBadge" data-text=""> </div>
+
+      <!-- 用語帳モーダル -->
+      <div id="glossary" aria-modal="true" role="dialog" style="display:none">
+        <div class="gWrap">
+          <div class="gHead">
+            <strong>用語帳（Glossary）</strong>
+            <input id="gSearch" placeholder="用語や説明で検索…"/>
+            <button class="btn" id="gClose">閉じる</button>
+          </div>
+          <div class="gBody" id="gBody"></div>
+          <div class="note">注: ここに記載の説明は本リポジトリの README 群の公開情報を要約した教科書的解説です。内部係数などは含みません。</div>
+        </div>
+      </div>
+
+      <footer>
+        <div class="note">
+          - 本ページは 1 ファイルのデモ (index.html) です。オフラインで動作します。<br/>
+          - コンポーネント名はリポジトリ内のディレクトリ/README に対応: Home Mixer, CR-Mixer, Earlybird(Search), UTEG, FRS, USS, Visibility 等。
+        </div>
+      </footer>
+    </div>
+
+    <script>
+    // ============= 基本ユーティリティ =============
+    const lerp = (a,b,t)=>a+(b-a)*t;
+    const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+    const rand=(a,b)=>lerp(a,b,Math.random());
+
+    // ============= キャンバス初期化 =============
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, DPR = Math.min(window.devicePixelRatio||1, 2);
+    let layoutReady = false; // 初期resizeでlayout未定義を回避
+    function resize(){
+      const rect = canvas.getBoundingClientRect();
+      W = Math.floor(rect.width*DPR); H = Math.floor(Math.max(300,rect.height)*DPR);
+      canvas.width = W; canvas.height = H; if(layoutReady) layout();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ============= ノードとエッジ =============
+    // ノード: 位置は比率で定義し、リサイズで再計算
+    const nodes = [
+      {id:'tweet', label:'投稿（ポスト）', color:'--neon-c1', pos:[0.08,0.52]},
+      {id:'uss', label:'USS（User Signal Service）\nユーザー行動信号', color:'--neon-c1', pos:[0.18,0.40]},
+
+      {id:'earlybird', label:'Earlybird（検索）\nIn-Network候補', color:'--neon-c4', pos:[0.32,0.26]},
+      {id:'uteg', label:'UTEG（User Tweet\nEntity Graph）', color:'--neon-c4', pos:[0.33,0.50]},
+      {id:'crmixer', label:'CR‑Mixer（候補混合/軽ランク）', color:'--neon-c4', pos:[0.33,0.70]},
+      {id:'frs', label:'FRS（Follow\nRecommendations）', color:'--neon-c4', pos:[0.24,0.82]},
+
+      {id:'feat', label:'特徴量水和（~6000）\nGraph Feature/RepMgr', color:'--neon-c1', pos:[0.48,0.46]},
+
+      {id:'lightr', label:'Light Ranker（軽）', color:'--neon-c2', pos:[0.58,0.32]},
+      {id:'heavyr', label:'Heavy Ranker（重）', color:'--neon-c2', pos:[0.62,0.52]},
+
+      {id:'mixer', label:'Home Mixer（統合）', color:'--neon-c3', pos:[0.72,0.46]},
+      {id:'filters', label:'Visibility（可視性）\n重複/疲労/法令等', color:'--neon-c3', pos:[0.78,0.60]},
+
+      {id:'distribution', label:'配信（For You/通知/Explore）', color:'--neon-c4', pos:[0.86,0.40]},
+      {id:'users', label:'RealGraph/SimClusters\n（ネットワーク）', color:'--neon-c1', pos:[0.86,0.70]},
+      {id:'buzz', label:'バズ（臨界）', color:'--warning', pos:[0.94,0.50]},
+    ];
+
+    // エッジ: src -> dst, 曲線制御点係数と基底強度
+    const edgesBase = [
+      ['tweet','uss', 0.2],
+      ['uss','earlybird', 0.3],
+      ['uss','uteg', 0.3],
+      ['uss','crmixer', 0.2],
+      ['uss','frs', 0.2],
+
+      ['earlybird','lightr', 0.4],
+      ['uteg','lightr', 0.35],
+      ['crmixer','lightr', 0.25],
+      ['frs','lightr', 0.2],
+      ['lightr','feat', 0.25],
+      ['feat','heavyr', 0.45],
+      ['heavyr','mixer', 0.55],
+      ['mixer','filters', 0.65],
+      ['filters','distribution', 0.55],
+      ['distribution','users', 0.45],
+      ['users','buzz', 0.35],
+      // 反響ループ
+      ['users','uss', 0.1],
+      ['buzz','distribution', 0.15],
+    ];
+
+    const nodeMap = new Map();
+    const edges = [];
+    function layout(){
+      nodeMap.clear();
+      for(const n of nodes){
+        const x = n.pos[0]*W; const y = n.pos[1]*H; n.x=x; n.y=y; nodeMap.set(n.id,n);
+      }
+      edges.length=0;
+      for(const [a,b,str] of edgesBase){
+        const A=nodeMap.get(a), B=nodeMap.get(b);
+        const midX = (A.x+B.x)/2 + (B.y-A.y)*0.05; // 少し湾曲
+        const midY = (A.y+B.y)/2 + (A.x-B.x)*0.02;
+        edges.push({a:A,b:B,cx:midX,cy:midY,base:str,intensity:str});
+      }
+      layoutReady = true;
+    }
+    layout();
+
+    // ============= パーティクルシステム =============
+    const particles=[];
+    function spawnOnEdge(e, k=1){
+      const t0 = Math.random()*0.2; // ランダム位置
+      const speed = rand(0.15,0.6); // エッジ固有速度
+      particles.push({e, t:t0, v: speed*(0.3+e.intensity), life:rand(0.8,1.6), hue: rand(180,220)});
+    }
+    function edgePoint(e,t){
+      const x = (1-t)*(1-t)*e.a.x + 2*(1-t)*t*e.cx + t*t*e.b.x;
+      const y = (1-t)*(1-t)*e.a.y + 2*(1-t)*t*e.cy + t*t*e.b.y;
+      return {x,y};
+    }
+
+    // ============= フェーズ定義 =============
+    const phases = [
+      {name:'準備（シミュレーション起動）', key:'init', desc:'シミュレーションの準備段階。背景グリッドや基礎光を生成。コンテンツの投稿イベントそのものではありません。', boost: {all:0.3}},
+      {name:'投稿（ポスト）', key:'post', desc:'ユーザーが新規投稿。USS（User Signal Service）に初期信号が流れ始めます。',
+        boost:{ edges:['tweet->uss'], amount:2.2 } },
+      {name:'初期反応（USS蓄積）', key:'early', desc:'いいね/RT/クリック等がUSSに蓄積。RealGraph/SimClusters（ネットワーク/コミュニティ特徴）が活性化。',
+        boost:{ edges:['uss->earlybird','uss->uteg','uss->crmixer','uss->frs'], amount:1.6 } },
+      {name:'候補生成（Candidate Generation）', key:'cand', desc:'In/Out-of-Networkの候補収集。CR‑Mixerで軽ランクと混合。',
+        boost:{ edges:['earlybird->lightr','uteg->lightr','crmixer->lightr','frs->lightr'], amount:1.8 } },
+      {name:'特徴量水和（Feature Hydration）', key:'feat', desc:'~6000種の特徴を水和（Graph Feature/RepMgrなど）。ランク用の文脈を強化。',
+        boost:{ edges:['lightr->feat'], amount:1.8 } },
+      {name:'ランキング（Light/Heavy Ranker）', key:'rank', desc:'軽量→重量ランカーでスコアリング。良質候補を集約。',
+        boost:{ edges:['feat->heavyr','heavyr->mixer'], amount:2.0 } },
+      {name:'ミキシング/制御（Home Mixer・Visibility）', key:'mix', desc:'Home Mixerで並べ替え。Visibility/重複/疲労/法令等を調整。',
+        boost:{ edges:['mixer->filters'], amount:2.0 } },
+      {name:'配信（For You・通知等）', key:'dist', desc:'For You・通知・Explore などに配信。閲覧→二次反応へ。',
+        boost:{ edges:['filters->distribution','distribution->users'], amount:2.3 } },
+      {name:'波及（再循環・拡散）', key:'spread', desc:'ネットワークを伝播。トレンド/話題性が上昇し再循環。',
+        boost:{ edges:['users->buzz','users->uss','buzz->distribution'], amount:2.5 } },
+      {name:'バズ確定（臨界到達）', key:'buzz', desc:'拡散速度が臨界に到達し、光の流入が最大化。',
+        boost:{ all:3.4 } },
+    ];
+
+    let phaseIndex = 0; let playing=false; let phaseTimer=0; let phaseDur=4500; // ms
+    const badge = document.getElementById('phaseBadge');
+    const flash = document.getElementById('phaseFlash');
+    const phaseDesc = document.getElementById('phaseDesc');
+
+    // タイムラインUI
+    const tl = document.getElementById('timeline');
+    const reader = document.getElementById('reader');
+    const items = phases.map((p,i)=>{
+      const el = document.createElement('div'); el.className='phaseItem';
+      el.innerHTML = `<div class="glow"></div><div>${i+1}. ${p.name}</div>`;
+      el.addEventListener('click',()=>{ setPhase(i,true); renderTimeline(); });
+      tl.appendChild(el); return el; });
+    function renderTimeline(){ items.forEach((el,i)=> el.classList.toggle('active', i===phaseIndex)); }
+
+    function setPhase(idx, manual=false){
+      phaseIndex = clamp(idx,0,phases.length-1);
+      phaseTimer = 0; renderTimeline();
+      const p = phases[phaseIndex];
+      badge.textContent = `${phaseIndex+1}. ${p.name}`; badge.setAttribute('data-text', badge.textContent);
+      phaseDesc.textContent = p.desc;
+      flash.classList.add('on'); badge.classList.add('on');
+      setTimeout(()=>{flash.classList.remove('on');badge.classList.remove('on');}, 650);
+      // フェーズ遷移: 光の流入 (周辺から中心へのフレア)
+      for(let i=0;i<60;i++) spawnRadialBurst();
+      if(manual) lastTime = performance.now();
+    }
+
+    // ============= 光の流入 (フェーズ効果) =============
+    const bursts=[];
+    function spawnRadialBurst(){
+      const r = Math.random()*Math.min(W,H)/2; const ang = Math.random()*Math.PI*2; const cx=W/2, cy=H/2;
+      const x = cx + Math.cos(ang)*r; const y = cy + Math.sin(ang)*r;
+      bursts.push({x,y, t:0, life: rand(0.6,1.2), hue: rand(170,210)});
+    }
+
+    // ============= メインループ =============
+    let lastTime = performance.now();
+    function loop(now){
+      const dt = Math.min(60, now-lastTime); lastTime = now; // ms
+      if(playing){
+        phaseTimer += dt;
+        if(phaseTimer>phaseDur && phaseIndex<phases.length-1){ setPhase(phaseIndex+1); }
+      }
+      draw(dt/1000);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // ============= 描画 =============
+    let ambient = 0.35; // 背景光
+    function draw(dt){
+      // 背景
+      ctx.clearRect(0,0,W,H);
+      // ほんのりノイズ
+      ctx.globalAlpha = 0.08; ctx.globalCompositeOperation='screen';
+      for(let i=0;i<3;i++){
+        const g = ctx.createLinearGradient(0,0,W,H);
+        g.addColorStop(0,`hsla(${200+i*30},100%,50%,0.03)`);
+        g.addColorStop(1,'transparent'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+      }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation='source-over';
+
+      // エッジ強度をフェーズごとに調整
+      const p = phases[phaseIndex];
+      const edgeBoostAll = p.boost?.all || 0;
+      const list = p.boost?.edges || [];
+      for(const e of edges){ e.intensity = e.base*(1+edgeBoostAll); }
+      for(const key of list){ // 'a->b' 形式
+        const [a,b] = key.split('->');
+        const e = edges.find(x=>x.a.id===a && x.b.id===b); if(e) e.intensity = e.base*(p.boost.amount||1.5);
+      }
+
+      // エッジのグローライン
+      for(const e of edges){
+        const grad = ctx.createLinearGradient(e.a.x,e.a.y,e.b.x,e.b.y);
+        const hue = 200 + (e.intensity*120);
+        grad.addColorStop(0,`hsla(${hue},100%,60%,${0.15+0.25*e.intensity})`);
+        grad.addColorStop(1,`hsla(${hue+40},100%,60%,0)`);
+        ctx.strokeStyle = grad; ctx.lineWidth = 2 + 2*e.intensity; ctx.globalCompositeOperation='screen';
+        ctx.beginPath(); ctx.moveTo(e.a.x,e.a.y); ctx.quadraticCurveTo(e.cx,e.cy,e.b.x,e.b.y); ctx.stroke();
+      }
+
+      // ノード
+      const css = getComputedStyle(document.documentElement);
+      for(const n of nodes){
+        const r = 12; const neon = css.getPropertyValue(n.color).trim() || '#0ff';
+        // 外周グロー
+        ctx.globalAlpha = 0.35 + 0.35*ambient; ctx.fillStyle = neon; ctx.beginPath(); ctx.arc(n.x,n.y, r*3, 0, Math.PI*2); ctx.fill();
+        // 本体
+        ctx.globalAlpha = 1; ctx.fillStyle = '#0a1628'; ctx.strokeStyle = '#2a3d6a'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(n.x,n.y,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        // ラベル
+        ctx.font = `${12*DPR}px ui-monospace, monospace`; ctx.textAlign='center'; ctx.textBaseline='top';
+        ctx.fillStyle = 'rgba(198,214,255,.92)'; multiLine(n.label, n.x, n.y + r + 6*DPR);
+      }
+
+      // ノード強調（用語帳からのジャンプ）
+      if(hi.t>0 && hi.id && nodeMap.get(hi.id)){
+        const n = nodeMap.get(hi.id); hi.t -= dt; const k = Math.max(0,hi.t);
+        ctx.globalCompositeOperation='lighter';
+        ctx.strokeStyle = `rgba(0,230,255,${0.6*k})`; ctx.lineWidth = 2 + 10*k; ctx.beginPath(); ctx.arc(n.x, n.y, 24 + 20*k, 0, Math.PI*2); ctx.stroke();
+        ctx.globalCompositeOperation='source-over';
+      }
+
+      // パーティクル発生
+      const baseRate = 80; // /sec 全体
+      const rate = baseRate*(0.6 + phaseIndex*0.25) * (0.6 + reachMul*0.4);
+      const emitCount = rate*dt;
+      for(let i=0;i<emitCount;i++){
+        const e = edges[Math.floor(Math.random()*edges.length)];
+        if(Math.random() < e.intensity) spawnOnEdge(e);
+      }
+      // パーティクル更新/描画
+      ctx.globalCompositeOperation = 'lighter';
+      for(let i=particles.length-1;i>=0;i--){
+        const k = particles[i]; k.t += k.v*dt; k.life -= dt*0.4;
+        if(k.t>1 || k.life<=0){ particles.splice(i,1); continue; }
+        const pt = edgePoint(k.e, k.t);
+        const s = 1.5 + 2.5*k.e.intensity;
+        ctx.fillStyle = `hsla(${k.hue},100%,60%,${0.35+0.45*k.life})`;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, s, 0, Math.PI*2); ctx.fill();
+      }
+
+      // バースト (光の流入)
+      for(let i=bursts.length-1;i>=0;i--){
+        const b = bursts[i]; b.t += dt; const k = b.t/b.life; if(k>=1){bursts.splice(i,1);continue;}
+        ctx.strokeStyle = `hsla(${b.hue},100%,60%,${0.7*(1-k)})`; ctx.lineWidth=1.2; ctx.beginPath();
+        const cx=W/2, cy=H/2; ctx.moveTo(b.x,b.y); ctx.lineTo(lerp(b.x,cx,k*k), lerp(b.y,cy,k*k)); ctx.stroke();
+      }
+
+      ctx.globalCompositeOperation='source-over';
+
+      // バズメーター更新: 総Intensityとフェーズで擬似算出
+      const sumI = edges.reduce((s,e)=>s+e.intensity,0);
+      const buzz = clamp((sumI/edges.length)*0.55 + phaseIndex*0.05 + reachMul*0.15, 0, 1);
+      document.getElementById('buzzBar').style.height = (8 + buzz*92).toFixed(1)+'%';
+      document.getElementById('buzzPercent').textContent = Math.round((8 + buzz*92))+'%';
+    }
+
+    function multiLine(text, x, y){
+      const lines = String(text).split(/\\n/);
+      for(let i=0;i<lines.length;i++) ctx.fillText(lines[i], x, y + i*14*DPR);
+    }
+
+    // ============= ボタン制御 =============
+    const btnPlay = document.getElementById('btnPlay');
+    const btnNext = document.getElementById('btnNext');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnReset = document.getElementById('btnReset');
+    const btnGlossary = document.getElementById('btnGlossary');
+
+    btnPlay.addEventListener('click',()=>{
+      playing = !playing; btnPlay.textContent = playing ? '⏸ 一時停止' : '⏵ 再生';
+      if(playing && phaseIndex===0) setPhase(1,true);
+    });
+    btnNext.addEventListener('click',()=>{ setPhase(phaseIndex+1,true); playing=false; btnPlay.textContent='⏵ 再生'; });
+    btnPrev.addEventListener('click',()=>{ setPhase(phaseIndex-1,true); playing=false; btnPlay.textContent='⏵ 再生'; });
+    btnReset.addEventListener('click',()=>{ setPhase(0,true); playing=false; btnPlay.textContent='⏵ 再生'; });
+    btnGlossary.addEventListener('click',()=>{ openGlossary(); });
+
+    // ============= 倍率モデル =============
+    const factors = {
+      earlyVelocity: 1.2,  // USS初期反応速度
+      socialProof: 1.1,    // フォロワー経由の社会的証拠
+      authorCred: 1.0,     // 作者信頼/関係
+      topicFit: 1.0,       // トピック合致
+      dwell: 1.0,          // 視聴維持/滞在
+      novelty: 1.0,        // 新規性
+      fatigue: 1.0,        // 疲労(<=1)
+      dedupe: 1.0,         // 重複抑制(<=1)
+      authorDivers: 1.0,   // 作者多様性(<=1)
+      safety: 1.0,         // 可視性/安全(<=1)
+      negFeedback: 1.0,    // 低評価蓄積(<=1)
+      outlink: 1.0         // 外部リンク(仮説)(<=1)
+    };
+    let reachMul = 1.0;
+    const multUI = document.getElementById('multUI');
+    function updateReach(){
+      reachMul = 1.0;
+      for(const k in factors){ reachMul *= Number(factors[k]); }
+      document.getElementById('reachNow').textContent = reachMul.toFixed(2)+'x';
+    }
+    // bind inputs
+    multUI.querySelectorAll('input[type=range], select').forEach(el=>{
+      const key = el.getAttribute('data-factor');
+      const updateVal = ()=>{
+        factors[key] = Number(el.value);
+        const span = document.getElementById('val-'+key); if(span) span.textContent = factors[key].toFixed(2)+'x';
+        updateReach();
+      };
+      el.addEventListener('input', updateVal);
+    });
+    // presets
+    multUI.querySelectorAll('button[data-preset]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const p = btn.getAttribute('data-preset');
+        function set(id,val){ const el = multUI.querySelector(`[data-factor="${id}"]`); if(el){ el.value = val; el.dispatchEvent(new Event('input')); } }
+        if(p==='reset'){
+          set('earlyVelocity',1.2); set('socialProof',1.1); set('authorCred',1.0); set('topicFit',1.0); set('dwell',1.0); set('novelty',1.0);
+          set('fatigue',1.0); set('dedupe',1.0); set('authorDivers',1.0); multUI.querySelector('[data-factor="safety"]').value='1'; set('negFeedback',1.0); set('outlink',1.0);
+        }
+        if(p==='text'){
+          set('earlyVelocity',1.3); set('socialProof',1.2); set('authorCred',1.0); set('topicFit',1.2); set('dwell',1.0); set('novelty',1.1);
+          set('fatigue',1.0); set('dedupe',1.0); set('authorDivers',1.0); multUI.querySelector('[data-factor="safety"]').value='1'; set('negFeedback',1.0); set('outlink',1.0);
+        }
+        if(p==='video'){
+          set('earlyVelocity',1.5); set('socialProof',1.3); set('authorCred',1.1); set('topicFit',1.2); set('dwell',1.5); set('novelty',1.1);
+          set('fatigue',0.95); set('dedupe',1.0); set('authorDivers',1.0); multUI.querySelector('[data-factor="safety"]').value='1'; set('negFeedback',1.0); set('outlink',1.0);
+        }
+        if(p==='link'){
+          set('earlyVelocity',1.2); set('socialProof',1.1); set('authorCred',1.0); set('topicFit',1.1); set('dwell',1.0); set('novelty',1.0);
+          set('fatigue',0.95); set('dedupe',1.0); set('authorDivers',1.0); multUI.querySelector('[data-factor="safety"]').value='1'; set('negFeedback',1.0); set('outlink',0.9);
+        }
+        if(p==='thread'){
+          set('earlyVelocity',1.4); set('socialProof',1.25); set('authorCred',1.05); set('topicFit',1.25); set('dwell',1.15); set('novelty',1.05);
+          set('fatigue',0.95); set('dedupe',0.9); set('authorDivers',0.95); multUI.querySelector('[data-factor="safety"]').value='1'; set('negFeedback',1.0); set('outlink',1.0);
+        }
+        updateReach();
+      });
+    });
+    updateReach();
+
+    // 初期フェーズ
+    setPhase(0,true);
+
+    // ============= ツールチップ =============
+    const tip = document.getElementById('tip');
+    const tipTitle = tip.querySelector('.title');
+    const tipBody = tip.querySelector('.body');
+    function showTip(title, body, x, y){
+      tipTitle.textContent = title; tipBody.textContent = body;
+      tip.style.display='block';
+      const pad = 14; const rect={w: tip.offsetWidth, h: tip.offsetHeight};
+      const nx = Math.min(window.innerWidth-rect.w-pad, x+16);
+      const ny = Math.min(window.innerHeight-rect.h-pad, y+16);
+      tip.style.left = nx+'px'; tip.style.top = ny+'px';
+    }
+    function moveTip(x,y){
+      if(tip.style.display==='none') return; const pad=14; const rect={w: tip.offsetWidth, h: tip.offsetHeight};
+      const nx = Math.min(window.innerWidth-rect.w-pad, x+16);
+      const ny = Math.min(window.innerHeight-rect.h-pad, y+16);
+      tip.style.left = nx+'px'; tip.style.top = ny+'px';
+    }
+    function hideTip(){ tip.style.display='none'; }
+
+    // タイムライン: ホバーで説明
+    items.forEach((el,i)=>{
+      const p = phases[i];
+      el.addEventListener('mouseenter', (ev)=> showTip(`${i+1}. ${p.name}`, p.desc, ev.clientX, ev.clientY));
+      el.addEventListener('mousemove', (ev)=> moveTip(ev.clientX, ev.clientY));
+      el.addEventListener('mouseleave', hideTip);
+    });
+
+    // 読みもの: summaryクリックで該当フェーズへ
+    reader?.querySelectorAll('summary[data-phase]')?.forEach(sm=>{
+      sm.addEventListener('click', (e)=>{
+        const idx = Number(sm.getAttribute('data-phase'))||0; setPhase(idx,true);
+      });
+    });
+
+    // ============= ノード説明とドラッグ =============
+    const nodeInfo = {
+      tweet:'ユーザーの新規投稿。テキスト/画像/動画/リンクなどが起点。',
+      uss:'User Signal Service: いいね/RT/返信/クリック/視聴/プロフィール訪問などの信号を集約し統一形式で提供。',
+      earlybird:'検索インデックス(Earlybird)。主にIn-Networkから高速に候補を取得。',
+      uteg:'User Tweet Entity Graph。ユーザー×ツイートの相互作用グラフを辿って候補を探索。',
+      crmixer:'CR‑Mixer。複数候補源を混合し軽ランク/フィルタを適用。',
+      frs:'Follow Recommendations Service。フォロー推薦経由の候補注入。',
+      feat:'特徴量水和。Graph Feature/Representation Manager等から多数の特徴を取得。',
+      lightr:'Light Ranker。予選段階の軽量スコアリング。',
+      heavyr:'Heavy Ranker。ニューラルモデルによる本ランキング。',
+      mixer:'Home Mixer。最終並べ替え/非ツイート要素の混在/カーソル等。',
+      filters:'Visibility/ヒューリスティクス。法令/品質/信頼/収益保護、重複/既視/疲労などの制御。',
+      distribution:'配信。For You/通知/Exploreなどの面へ露出。',
+      users:'ユーザーネットワーク(RealGraph/SimClusters)。二次反応・拡散源。',
+      buzz:'バズ状態。露出と反応が臨界に達した結果。'
+    };
+
+    let hoverNode=null; let dragNode=null; let dragging=false;
+    canvas.addEventListener('pointermove', (ev)=>{
+      const mx = ev.offsetX*DPR, my = ev.offsetY*DPR;
+      // ノード当たり判定
+      let found=null; const r=12; const tol=r*1.4;
+      for(const n of nodes){
+        const dx = mx-n.x, dy = my-n.y; if(dx*dx+dy*dy <= tol*tol){ found=n; break; }
+      }
+      hoverNode = found;
+      if(dragging && dragNode){
+        dragNode.x = clamp(mx, 10*DPR, W-10*DPR); dragNode.y = clamp(my, 10*DPR, H-10*DPR);
+        dragNode.pos[0] = dragNode.x/W; dragNode.pos[1] = dragNode.y/H; layout(); // 再計算
+        moveTip(ev.clientX, ev.clientY);
+      } else {
+        if(found){
+          canvas.style.cursor = 'grab';
+          const title = nodeMap.get(found.id)?.label?.split('\n')[0] || found.id;
+          showTip(title, nodeInfo[found.id]||'', ev.clientX, ev.clientY);
+        } else {
+          canvas.style.cursor = 'default'; hideTip();
+        }
+      }
+    });
+    canvas.addEventListener('pointerdown', (ev)=>{
+      if(hoverNode){ dragNode = hoverNode; dragging=true; canvas.setPointerCapture(ev.pointerId); canvas.style.cursor='grabbing'; ev.preventDefault(); }
+    });
+    window.addEventListener('pointerup', (ev)=>{
+      if(dragging){ dragging=false; canvas.releasePointerCapture?.(ev.pointerId); canvas.style.cursor='grab'; saveNodePositions(); }
+    });
+
+    function saveNodePositions(){
+      const map={}; nodes.forEach(n=> map[n.id]=n.pos); localStorage.setItem('nodePositions', JSON.stringify(map));
+    }
+    function loadNodePositions(){
+      try{ const raw=localStorage.getItem('nodePositions'); if(!raw) return; const map=JSON.parse(raw);
+        nodes.forEach(n=>{ if(map[n.id]){ n.pos = map[n.id]; } }); layout();
+      }catch(e){}
+    }
+    loadNodePositions();
+
+    // ============= 用語帳（Glossary） =============
+    const glossaryData = [
+      {id:'tweet', term:'投稿（ポスト）', desc:'X上の新規コンテンツ。テキスト/画像/動画/リンクなど形式を問わず起点。', cat:'コンテンツ', node:'tweet'},
+      {id:'uss', term:'USS（User Signal Service）', desc:'ユーザー行動信号（いいね/RT/返信/クリック/視聴/プロフ訪問等）を集約・正規化するオンラインサービス。候補生成とランキング特徴に利用。', cat:'データ/信号', node:'uss'},
+      {id:'uua', term:'UUA（Unified User Actions）', desc:'リアルタイムのユーザー行動イベントのストリーム。USSの元データとして利用。', cat:'データ/信号'},
+      {id:'earlybird', term:'Earlybird（検索インデックス）', desc:'主にIn‑Networkの投稿を高速検索して候補化。Light Rankerによる軽い順位付けも。', cat:'候補生成', node:'earlybird'},
+      {id:'uteg', term:'UTEG（User Tweet Entity Graph）', desc:'ユーザー×投稿の相互作用グラフ（GraphJet基盤）から辿って候補を生成。', cat:'候補生成', node:'uteg'},
+      {id:'crmixer', term:'CR‑Mixer', desc:'複数の候補源を混合し、共通の軽ランク/フィルタを適用する統合層。', cat:'候補生成', node:'crmixer'},
+      {id:'frs', term:'FRS（Follow Recommendations Service）', desc:'フォロー推薦と、その推薦アカウント由来の投稿候補を供給。', cat:'候補生成', node:'frs'},
+      {id:'feature', term:'特徴量水和（Feature Hydration）', desc:'ランキングに必要な多数の特徴（~6000）を各ストア/サービスから取得して整える処理。', cat:'特徴量', node:'feat'},
+      {id:'lightr', term:'Light Ranker', desc:'前段の軽量モデル。巨大な候補集合から重ランクに渡す母集団を圧縮。', cat:'ランキング', node:'lightr'},
+      {id:'heavyr', term:'Heavy Ranker', desc:'ニューラルネット等の本格的モデルでスコアリングし順位付けを決定。', cat:'ランキング', node:'heavyr'},
+      {id:'mixer', term:'Home Mixer', desc:'Product Mixer上でタイムラインの最終構築を行うオーケストレーター。会話モジュール/広告/Who to follow等の混在も扱う。', cat:'ミキシング', node:'mixer'},
+      {id:'visibility', term:'Visibility（可視性フィルタリング）', desc:'法令/品質/信頼/収益保護の観点から、非表示・ラベル・インタースティシャル・ダウンランク等の扱いを決めるルールエンジン。', cat:'安全/ポリシー', node:'filters'},
+      {id:'distribution', term:'配信（For You/通知/Explore）', desc:'成果物を各面へ配信。閲覧が二次反応を生み、再循環へ。', cat:'配信', node:'distribution'},
+      {id:'users', term:'RealGraph / SimClusters', desc:'RealGraph: ユーザー間相互作用の確率モデル。SimClusters: コミュニティ検出と疎な埋め込み。', cat:'モデル/グラフ', node:'users'},
+      {id:'repManager', term:'Representation Manager', desc:'SimClustersやTwHINなどの埋め込みを取得するサービス。', cat:'特徴量'},
+      {id:'graphFeature', term:'Graph Feature Service', desc:'ユーザー間/ユーザー×投稿のグラフ特徴（例: あるAのフォローがBの投稿をどれだけ「いいね」したか等）を提供。', cat:'特徴量'},
+      {id:'repScorer', term:'Representation Scorer', desc:'埋め込みの類似度に基づくスコアを計算。', cat:'特徴量'},
+      {id:'topicSP', term:'Topic Social Proof', desc:'投稿に関連するトピックを推定し、社会的文脈を付与。', cat:'特徴量'},
+      {id:'twhin', term:'TwHIN', desc:'ユーザー/投稿の密な知識グラフ埋め込み。', cat:'モデル/埋め込み'},
+      {id:'tweepcred', term:'Tweepcred', desc:'ユーザーの信用度をPageRank様手法で推定する指標。', cat:'モデル/指標'},
+      {id:'timelineranker', term:'TimelineRanker', desc:'検索インデックス/UTEGから候補を取得し、軽いスコアで整形するレガシーサービス（重ランク自体は行わない）。', cat:'候補生成'},
+      {id:'tweetypie', term:'Tweetypie', desc:'投稿データの読み書きを担うコアサービス。表示時の水和にも利用。', cat:'データ/基盤'},
+      {id:'pushservice', term:'Pushservice', desc:'通知向けの推薦サービス。通知開封や反応の確率を多タスク学習で予測。', cat:'配信'},
+      {id:'productmixer', term:'Product Mixer', desc:'フィード構築のためのパイプラインフレームワーク。Home Mixer等がこれ上に実装される。', cat:'フレームワーク'}
+    ];
+
+    const gEl = document.getElementById('glossary');
+    const gBody = document.getElementById('gBody');
+    const gSearch = document.getElementById('gSearch');
+    const gClose = document.getElementById('gClose');
+
+    function openGlossary(){ gEl.style.display='block'; renderGlossary(); gSearch.focus(); }
+    function closeGlossary(){ gEl.style.display='none'; }
+    gClose?.addEventListener('click', closeGlossary);
+    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape'&& gEl.style.display==='block') closeGlossary(); });
+    gEl.addEventListener('click', (e)=>{ if(e.target===gEl) closeGlossary(); });
+    gSearch?.addEventListener('input', renderGlossary);
+
+    function renderGlossary(){
+      const q = (gSearch?.value||'').toLowerCase();
+      gBody.innerHTML = '';
+      glossaryData.filter(it=>{
+        if(!q) return true; const hay = (it.term+' '+it.desc+' '+(it.cat||'')).toLowerCase(); return hay.includes(q);
+      }).forEach(it=>{
+        const d = document.createElement('div'); d.className='term';
+        d.innerHTML = `<h3>${it.term}${it.cat?` <span class="mut" style="font-size:11px">[${it.cat}]</span>`:''}</h3><p>${it.desc}</p>`;
+        if(it.node){ d.style.cursor='pointer'; d.title='クリックして図のノードを強調'; d.addEventListener('click',()=>{ highlightNode(it.node); closeGlossary(); }); }
+        gBody.appendChild(d);
+      });
+    }
+
+    // ノード強調表示
+    let hi={id:null,t:0};
+    function highlightNode(id){ hi={id,t:1.8}; const n=nodeMap.get(id); if(n){ window.scrollTo({top:0,behavior:'smooth'}); } }
+    </script>
+  </body>
+</html>
