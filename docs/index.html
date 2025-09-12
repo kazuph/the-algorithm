@@ -22,6 +22,10 @@
       header{grid-column:1/4;display:flex;gap:12px;align-items:center;justify-content:space-between}
       header h1{font-size:18px;letter-spacing:0.04em;margin:0;text-shadow:0 0 6px #58f,0 0 12px #58f3}
       header .controls{display:flex;gap:8px;align-items:center}
+      .seg{display:inline-flex;border:1px solid #23305a;border-radius:8px;overflow:hidden}
+      .seg button{border:none;border-right:1px solid #23305a;background:#0a1223;color:#cfe2ff;padding:6px 10px;cursor:pointer}
+      .seg button:last-child{border-right:none}
+      .seg button.on{background:#0f1a36;color:#8fb8ff;box-shadow:inset 0 0 0 1px #4a6fff55}
       .btn{background:transparent;border:1px solid #2a355a;color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer;backdrop-filter: blur(6px);transition: .15s; box-shadow: inset 0 0 0 1px #0003}
       .btn:hover{border-color:#4966ff80;box-shadow:0 0 10px #4a6fff55, inset 0 0 12px #4a6fff22}
       .btn.primary{border-color:var(--neon-c1);color:var(--neon-c1);text-shadow:0 0 8px #0ef8}
@@ -55,6 +59,18 @@
       .reader details{border:1px solid #223059;border-radius:8px;background:#0b1426;padding:8px;margin:6px 0}
       .reader summary{cursor:pointer;color:#cfe2ff}
       .reader .kw{color:#9ecbff}
+      /* code navigator modal */
+      #codeNav{position:fixed;inset:0;background:rgba(2,6,12,.65);backdrop-filter:blur(6px);z-index:9;display:none}
+      #codeNav .cWrap{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:min(1100px,92vw);height:min(70vh,780px);display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#0c1428,#0a1224);border:1px solid #23305a;border-radius:12px;box-shadow:0 0 0 1px #0008, 0 0 50px #0af3;padding:12px}
+      #codeNav .cHead{display:flex;gap:8px;align-items:center;color:#cfe2ff}
+      #codeNav .cBody{overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;padding-right:2px}
+      .mod{border:1px solid #23305a;border-radius:10px;background:#0a1528;padding:10px}
+      .mod h3{margin:0 0 6px;color:#a9c3ff;font-size:13px}
+      .mod ul{margin:0;padding-left:18px;font-size:12px;color:#cfe2ff}
+      .mod li{margin:3px 0}
+      .mod code{color:#9ecbff}
+      .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .note{color:#9bb0d0;font-size:12px}
       .timeline{grid-column:1/4;grid-row:2/3;display:flex;gap:8px;align-items:center;position:sticky;top:10px;z-index:5}
       .timeline .phaseItem{flex:1;padding:6px 8px;border:1px solid #223059;border-radius:8px;background:#0a1223;position:relative;color:#b8c9ef}
       .timeline .phaseItem.active{border-color:#4b6bff80;box-shadow:0 0 12px #4b6bff55}
@@ -101,8 +117,15 @@
           <button class="btn primary" id="btnPlay">⏵ 再生</button>
           <button class="btn" id="btnNext">次へ ▶︎</button>
           <button class="btn" id="btnReset">最初から</button>
+          <span class="mut">モード:</span>
+          <span class="seg" role="tablist" aria-label="表示モード">
+            <button class="on" id="modeForYou" role="tab" aria-selected="true">For You</button>
+            <button id="modeFollowing" role="tab" aria-selected="false">Following</button>
+            <button id="modePush" role="tab" aria-selected="false">通知</button>
+          </span>
           <button class="btn" id="btnGlossary">単語帳</button>
-          <a class="btn" id="btnGitHub" href="https://github.com/twitter/the-algorithm" target="_blank" rel="noopener">GitHub ↗︎</a>
+          <button class="btn" id="btnCodeNav">コードナビ</button>
+          <a class="btn" id="btnGitHub" href="https://github.com/kazuph/the-algorithm" target="_blank" rel="noopener">GitHub ↗︎</a>
         </div>
       </header>
 
@@ -240,6 +263,18 @@
           </div>
           <div class="gBody" id="gBody"></div>
           <div class="note">注: ここに記載の説明は本リポジトリの README 群の公開情報を要約した教科書的解説です。内部係数などは含みません。</div>
+      </div>
+      </div>
+
+      <!-- コードナビ モーダル -->
+      <div id="codeNav" aria-modal="true" role="dialog" style="display:none">
+        <div class="cWrap">
+          <div class="cHead">
+            <strong>コードナビ（主要ファイルとREADME）</strong>
+            <button class="btn" id="cClose">閉じる</button>
+          </div>
+          <div class="note">注: リンクはローカルの相対パス（例: <code>../home-mixer/README.md</code>）とGitHubを併記。ブラウザのローカル表示設定により開けない場合があります。</div>
+          <div class="cBody" id="cBody"></div>
         </div>
       </div>
 
@@ -317,6 +352,34 @@
       ['users','uss', 0.1],
       ['buzz','distribution', 0.15],
     ];
+
+    // モード（For You / Following / 通知）
+    let currentMode = 'foryou';
+    const modeBoosts = {
+      foryou: {
+        title: 'For You',
+        edges: new Set([
+          'uss->earlybird','uss->uteg','uss->crmixer','uss->frs',
+          'earlybird->lightr','uteg->lightr','crmixer->lightr','frs->lightr',
+          'lightr->feat','feat->heavyr','heavyr->mixer','mixer->filters','filters->distribution'
+        ]),
+        k: 1.15
+      },
+      following: {
+        title: 'Following',
+        edges: new Set([
+          'uss->earlybird','earlybird->lightr','lightr->feat','feat->heavyr','heavyr->mixer','mixer->filters','filters->distribution'
+        ]),
+        k: 1.15
+      },
+      push: {
+        title: '通知',
+        edges: new Set([
+          'uss->crmixer','crmixer->lightr','lightr->feat','feat->heavyr','mixer->filters','filters->distribution','distribution->users'
+        ]),
+        k: 1.12
+      }
+    };
 
     const nodeMap = new Map();
     const edges = [];
@@ -445,6 +508,15 @@
         const e = edges.find(x=>x.a.id===a && x.b.id===b); if(e) e.intensity = e.base*(p.boost.amount||1.5);
       }
 
+      // モード強調（対象エッジは少し増幅、非対象は弱め）
+      const mb = modeBoosts[currentMode];
+      if(mb){
+        for(const e of edges){
+          const key = `${e.a.id}->${e.b.id}`;
+          if(mb.edges.has(key)) e.intensity *= mb.k; else e.intensity *= 0.9;
+        }
+      }
+
       // エッジのグローライン
       for(const e of edges){
         const grad = ctx.createLinearGradient(e.a.x,e.a.y,e.b.x,e.b.y);
@@ -506,7 +578,7 @@
 
       // バズメーター更新: 総Intensityとフェーズで擬似算出
       const sumI = edges.reduce((s,e)=>s+e.intensity,0);
-      const buzz = clamp((sumI/edges.length)*0.55 + phaseIndex*0.05 + reachMul*0.15, 0, 1);
+      const buzz = clamp((sumI/edges.length)*0.55 + phaseIndex*0.05 + reachMul*0.15 + (currentMode==='foryou'?0.05:0), 0, 1);
       document.getElementById('buzzBar').style.height = (8 + buzz*92).toFixed(1)+'%';
       document.getElementById('buzzPercent').textContent = Math.round((8 + buzz*92))+'%';
     }
@@ -522,6 +594,10 @@
     const btnPrev = document.getElementById('btnPrev');
     const btnReset = document.getElementById('btnReset');
     const btnGlossary = document.getElementById('btnGlossary');
+    const btnCodeNav = document.getElementById('btnCodeNav');
+    const modeForYou = document.getElementById('modeForYou');
+    const modeFollowing = document.getElementById('modeFollowing');
+    const modePush = document.getElementById('modePush');
 
     btnPlay.addEventListener('click',()=>{
       playing = !playing; btnPlay.textContent = playing ? '⏸ 一時停止' : '⏵ 再生';
@@ -531,6 +607,20 @@
     btnPrev.addEventListener('click',()=>{ setPhase(phaseIndex-1,true); playing=false; btnPlay.textContent='⏵ 再生'; });
     btnReset.addEventListener('click',()=>{ setPhase(0,true); playing=false; btnPlay.textContent='⏵ 再生'; });
     btnGlossary.addEventListener('click',()=>{ openGlossary(); });
+    btnCodeNav.addEventListener('click',()=>{ openCodeNav(); });
+    function setMode(m){
+      currentMode = m;
+      modeForYou.classList.toggle('on', m==='foryou');
+      modeFollowing.classList.toggle('on', m==='following');
+      modePush.classList.toggle('on', m==='push');
+      modeForYou.setAttribute('aria-selected', m==='foryou');
+      modeFollowing.setAttribute('aria-selected', m==='following');
+      modePush.setAttribute('aria-selected', m==='push');
+      flash.classList.add('on'); setTimeout(()=>flash.classList.remove('on'), 500);
+    }
+    modeForYou.addEventListener('click',()=>setMode('foryou'));
+    modeFollowing.addEventListener('click',()=>setMode('following'));
+    modePush.addEventListener('click',()=>setMode('push'));
 
     // ============= 倍率モデル =============
     const factors = {
@@ -697,6 +787,7 @@
       {id:'uua', term:'UUA（Unified User Actions）', desc:'リアルタイムのユーザー行動イベントのストリーム。USSの元データとして利用。', cat:'データ/信号'},
       {id:'earlybird', term:'Earlybird（検索インデックス）', desc:'主にIn‑Networkの投稿を高速検索して候補化。Light Rankerによる軽い順位付けも。', cat:'候補生成', node:'earlybird'},
       {id:'uteg', term:'UTEG（User Tweet Entity Graph）', desc:'ユーザー×投稿の相互作用グラフ（GraphJet基盤）から辿って候補を生成。', cat:'候補生成', node:'uteg'},
+      {id:'utg', term:'UTG（User Tweet Graph）', desc:'双方向のエッジを持つユーザー×投稿のグラフ。UTEGより柔軟な多段トラバースが可能だがメモリ使用が大きい。', cat:'候補生成'},
       {id:'crmixer', term:'CR‑Mixer', desc:'複数の候補源を混合し、共通の軽ランク/フィルタを適用する統合層。', cat:'候補生成', node:'crmixer'},
       {id:'frs', term:'FRS（Follow Recommendations Service）', desc:'フォロー推薦と、その推薦アカウント由来の投稿候補を供給。', cat:'候補生成', node:'frs'},
       {id:'feature', term:'特徴量水和（Feature Hydration）', desc:'ランキングに必要な多数の特徴（~6000）を各ストア/サービスから取得して整える処理。', cat:'特徴量', node:'feat'},
@@ -706,6 +797,7 @@
       {id:'visibility', term:'Visibility（可視性フィルタリング）', desc:'法令/品質/信頼/収益保護の観点から、非表示・ラベル・インタースティシャル・ダウンランク等の扱いを決めるルールエンジン。', cat:'安全/ポリシー', node:'filters'},
       {id:'distribution', term:'配信（For You/通知/Explore）', desc:'成果物を各面へ配信。閲覧が二次反応を生み、再循環へ。', cat:'配信', node:'distribution'},
       {id:'users', term:'RealGraph / SimClusters', desc:'RealGraph: ユーザー間相互作用の確率モデル。SimClusters: コミュニティ検出と疎な埋め込み。', cat:'モデル/グラフ', node:'users'},
+      {id:'simclustersann', term:'SimClusters‑ANN', desc:'SimClusters埋め込みの近似コサイン類似でツイート候補を返すサービス（Approximate Cosine Similarity）。', cat:'候補生成'},
       {id:'repManager', term:'Representation Manager', desc:'SimClustersやTwHINなどの埋め込みを取得するサービス。', cat:'特徴量'},
       {id:'graphFeature', term:'Graph Feature Service', desc:'ユーザー間/ユーザー×投稿のグラフ特徴（例: あるAのフォローがBの投稿をどれだけ「いいね」したか等）を提供。', cat:'特徴量'},
       {id:'repScorer', term:'Representation Scorer', desc:'埋め込みの類似度に基づくスコアを計算。', cat:'特徴量'},
@@ -714,6 +806,7 @@
       {id:'tweepcred', term:'Tweepcred', desc:'ユーザーの信用度をPageRank様手法で推定する指標。', cat:'モデル/指標'},
       {id:'timelineranker', term:'TimelineRanker', desc:'検索インデックス/UTEGから候補を取得し、軽いスコアで整形するレガシーサービス（重ランク自体は行わない）。', cat:'候補生成'},
       {id:'tweetypie', term:'Tweetypie', desc:'投稿データの読み書きを担うコアサービス。表示時の水和にも利用。', cat:'データ/基盤'},
+      {id:'manhattan', term:'Manhattan', desc:'ユーザー/ツイート属性等のストレージ。TimelineRankerの一部特徴水和元として利用。', cat:'データ/基盤'},
       {id:'pushservice', term:'Pushservice', desc:'通知向けの推薦サービス。通知開封や反応の確率を多タスク学習で予測。', cat:'配信'},
       {id:'productmixer', term:'Product Mixer', desc:'フィード構築のためのパイプラインフレームワーク。Home Mixer等がこれ上に実装される。', cat:'フレームワーク'}
     ];
@@ -726,7 +819,11 @@
     function openGlossary(){ gEl.style.display='block'; renderGlossary(); gSearch.focus(); }
     function closeGlossary(){ gEl.style.display='none'; }
     gClose?.addEventListener('click', closeGlossary);
-    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape'&& gEl.style.display==='block') closeGlossary(); });
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='Escape'&& gEl.style.display==='block') closeGlossary();
+      if(e.key.toLowerCase()==='g' && gEl.style.display!=='block') openGlossary();
+      if(e.key.toLowerCase()==='c' && cEl.style.display!=='block') openCodeNav();
+    });
     gEl.addEventListener('click', (e)=>{ if(e.target===gEl) closeGlossary(); });
     gSearch?.addEventListener('input', renderGlossary);
 
@@ -746,6 +843,71 @@
     // ノード強調表示
     let hi={id:null,t:0};
     function highlightNode(id){ hi={id,t:1.8}; const n=nodeMap.get(id); if(n){ window.scrollTo({top:0,behavior:'smooth'}); } }
+
+    // ============= コードナビ =============
+    const cEl = document.getElementById('codeNav');
+    const cBody = document.getElementById('cBody');
+    const cClose = document.getElementById('cClose');
+    const codeMapData = [
+      { name:'Home Mixer / Product Mixer', readme:'../home-mixer/README.md', gh:'home-mixer', items:[
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/for_you/ForYouProductPipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/for_you/ForYouScoredTweetsMixerPipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/for_you/ForYouScoredTweetsCandidatePipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/ScoredTweetsRecommendationPipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/candidate_pipeline/ScoredTweetsInNetworkCandidatePipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/candidate_pipeline/ScoredTweetsTweetMixerCandidatePipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/candidate_pipeline/ScoredTweetsUtegCandidatePipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/candidate_pipeline/ScoredTweetsFrsCandidatePipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/scoring_pipeline/ScoredTweetsModelScoringPipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/following/FollowingProductPipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/following/FollowingMixerPipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/following/FollowingEarlybirdCandidatePipelineConfig.scala',
+        'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/list_tweets/ListTweetsProductPipelineConfig.scala'
+      ]},
+      { name:'Timeline Ranker', readme:'../timelineranker/README.md', gh:'timelineranker', items:[] },
+      { name:'CR-Mixer', readme:'../cr-mixer/README.md', gh:'cr-mixer', items:[] },
+      { name:'User Signal Service (USS) / UUA', readme:'../user-signal-service/README.md', gh:'user-signal-service', items:['../unified_user_actions/README.md'] },
+      { name:'Graph Feature Service', readme:'../graph-feature-service/README.md', gh:'graph-feature-service', items:[] },
+      { name:'Representation Manager / Scorer', readme:'../representation-manager/README.md', gh:'representation-manager', items:['../representation-scorer/README.md'] },
+      { name:'UTEG / UTG', readme:'../src/scala/com/twitter/recos/user_tweet_entity_graph/README.md', gh:'src/scala/com/twitter/recos', items:['../src/scala/com/twitter/recos/user_tweet_graph/README.md'] },
+      { name:'SimClusters ANN', readme:'../simclusters-ann/README.md', gh:'simclusters-ann', items:[] },
+      { name:'Follow Recommendations Service (FRS)', readme:'../follow-recommendations-service/README.md', gh:'follow-recommendations-service', items:[] },
+      { name:'Topic Social Proof', readme:'../topic-social-proof/README.md', gh:'topic-social-proof', items:[] },
+      { name:'Visibility Library', readme:'../visibilitylib/README.md', gh:'visibilitylib', items:[] },
+      { name:'Signals (一覧)', readme:'../RETREIVAL_SIGNALS.md', gh:'RETREIVAL_SIGNALS.md', items:[] }
+    ];
+
+    function openCodeNav(){ cEl.style.display='block'; renderCodeNav(); }
+    function closeCodeNav(){ cEl.style.display='none'; }
+    cClose?.addEventListener('click', closeCodeNav);
+    cEl.addEventListener('click', (e)=>{ if(e.target===cEl) closeCodeNav(); });
+
+    function renderCodeNav(){
+      cBody.innerHTML='';
+      for(const m of codeMapData){
+        const d = document.createElement('div'); d.className='mod';
+        const ghLink = `https://github.com/kazuph/the-algorithm/tree/main/${m.gh}`;
+        const local = m.readme ? `<a href="${m.readme}" target="_blank" rel="noopener">README（ローカル）↗︎</a>` : '';
+        const remote = m.gh ? ` / <a href="${ghLink}" target="_blank" rel="noopener">GitHub ↗︎</a>` : '';
+        d.innerHTML = `<h3>${m.name} <span class=\"mut\" style=\"font-weight:normal\">${local}${remote}</span></h3>`;
+        if(m.items && m.items.length){
+          const ul = document.createElement('ul');
+          for(const p of m.items){
+            const li = document.createElement('li');
+            li.innerHTML = `<code>${p}</code> <button class=\"btn\" data-copy=\"${p}\" style=\"padding:2px 6px\">copy</button>`;
+            ul.appendChild(li);
+          }
+          d.appendChild(ul);
+        }
+        cBody.appendChild(d);
+      }
+      cBody.querySelectorAll('[data-copy]')?.forEach(btn=>{
+        btn.addEventListener('click', async (e)=>{
+          const txt = e.currentTarget.getAttribute('data-copy');
+          try{ await navigator.clipboard.writeText(txt); e.currentTarget.textContent='copied'; setTimeout(()=>e.currentTarget.textContent='copy',800);}catch(_){/* noop */}
+        });
+      });
+    }
     </script>
   </body>
 </html>
