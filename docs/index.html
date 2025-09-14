@@ -18,10 +18,11 @@
       }
       *{box-sizing:border-box}
       html,body{height:100%;margin:0;background:radial-gradient(1200px 800px at 70% 30%, #0f1630 0%, var(--bg) 55%) no-repeat var(--bg);color:var(--text);font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;}
-      .wrap{display:grid;grid-template-columns: 320px 1fr 320px;grid-template-rows:auto auto 1fr auto;gap:12px;min-height:100vh;padding:14px}
+      .wrap{display:grid;grid-template-columns: 320px 1fr 320px;grid-template-rows:auto auto 1fr auto;gap:12px;min-height:100vh;height:100svh;padding:14px}
       header{grid-column:1/4;display:flex;gap:12px;align-items:center;justify-content:space-between}
       header h1{font-size:18px;letter-spacing:0.04em;margin:0;text-shadow:0 0 6px #58f,0 0 12px #58f3}
       header .controls{display:flex;gap:8px;align-items:center}
+      .seg.small button{padding:4px 8px;font-size:12px}
       .seg{display:inline-flex;border:1px solid #23305a;border-radius:8px;overflow:hidden}
       .seg button{border:none;border-right:1px solid #23305a;background:#0a1223;color:#cfe2ff;padding:6px 10px;cursor:pointer}
       .seg button:last-child{border-right:none}
@@ -30,8 +31,8 @@
       .btn:hover{border-color:#4966ff80;box-shadow:0 0 10px #4a6fff55, inset 0 0 12px #4a6fff22}
       .btn.primary{border-color:var(--neon-c1);color:var(--neon-c1);text-shadow:0 0 8px #0ef8}
       .panel{background:linear-gradient(180deg,#0c12254d,#0a101d33);border:1px solid #1a2242;box-shadow:0 0 0 1px #0003, inset 0 0 60px #0a143088;border-radius:12px;padding:12px}
-      .left{grid-row:3/4}
-      .right{grid-row:3/4}
+      .left{grid-row:3/4;min-height:0;overflow:auto}
+      .right{grid-row:3/4;min-height:0;overflow:auto}
       .legend h2, .phase h2{font-size:14px;margin:0 0 8px;color:#a9c3ff}
       .legend ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
       .chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid #223059;background:#0c1426}
@@ -49,7 +50,7 @@
       .meter .ticks::before{content:"";position:absolute;left:0;right:0;top:25%;height:1px;background:#ffffff11}
       .meter .ticks::after{content:"";position:absolute;left:0;right:0;top:60%;height:1px;background:#ffffff11}
       .muted{color:#9bb0d0}
-      canvas#sim{grid-column:2/3;grid-row:3/4;width:100%;height:100%;border-radius:14px;border:1px solid #1a2242;background:radial-gradient(1200px 700px at 50% 40%, #0c1530 0%, #0b0f1a 62%);box-shadow:inset 0 0 80px #08112a}
+      canvas#sim{grid-column:2/3;grid-row:3/4;width:100%;height:100%;min-height:0;border-radius:14px;border:1px solid #1a2242;background:radial-gradient(1200px 700px at 50% 40%, #0c1530 0%, #0b0f1a 62%);box-shadow:inset 0 0 80px #08112a}
       .gridOverlay{pointer-events:none;position:absolute;inset:0;border-radius:14px;overflow:hidden}
       .gridOverlay::before{content:"";position:absolute;inset:0;background-image: linear-gradient(transparent 31px, #0b1a3a88 32px), linear-gradient(90deg, transparent 31px, #0b1a3a88 32px); background-size:32px 32px;opacity:.18}
       .reader{margin-top:10px;border-top:1px solid #223059;padding-top:10px}
@@ -141,6 +142,11 @@
             <button id="modeFollowing" role="tab" aria-selected="false">Following</button>
             <button id="modePush" role="tab" aria-selected="false">通知</button>
           </span>
+          <span class="mut">用語:</span>
+          <span class="seg small" role="tablist" aria-label="用語レベル">
+            <button class="on" id="vocabSimple" role="tab" aria-selected="true">やさしい表示</button>
+            <button id="vocabExpert" role="tab" aria-selected="false">専門モード</button>
+          </span>
           <button class="btn" id="btnGlossary">単語帳</button>
           <button class="btn" id="btnCodeNav">コードナビ</button>
           <button class="btn" id="btnSavePng">🖼 PNG書き出し</button>
@@ -152,10 +158,10 @@
       <aside class="panel left legend">
         <h2>凡例 / コンポーネント</h2>
         <ul class="stack">
-          <li class="chip"><span class="dot c1"></span> データ/信号: USS（User Signal Service：ユーザー行動信号の集約）・UUA 等</li>
-          <li class="chip"><span class="dot c4"></span> 候補生成: Earlybird（検索）, UTEG（User Tweet Entity Graph）, CR‑Mixer, FRS（Follow Recommendations Service）</li>
-          <li class="chip"><span class="dot c2"></span> ランキング: Light Ranker（軽）/ Heavy Ranker（重）</li>
-          <li class="chip"><span class="dot c3"></span> ミキシング/制御: Home Mixer（統合）, Visibility（可視性）, ヒューリスティクス</li>
+          <li class="chip" id="legend-data"><span class="dot c1"></span> 反応を集める箱（USS / UUA）</li>
+          <li class="chip" id="legend-cand"><span class="dot c4"></span> 候補を集めて混ぜる（Earlybird / UTEG / CR‑Mixer / FRS）</li>
+          <li class="chip" id="legend-rank"><span class="dot c2"></span> 一次ふるい / 本審査（Light / Heavy）</li>
+          <li class="chip" id="legend-mix"><span class="dot c3"></span> 見せ方とルール（Home Mixer / Visibility）</li>
         </ul>
         <p class="mut note">この図は本リポジトリの README などの公開情報に基づく概念シミュレーションです。重み・閾値は可視化目的の擬似値です。</p>
         <div class="gridOverlay" aria-hidden="true"></div>
@@ -379,24 +385,24 @@
     // ============= ノードとエッジ =============
     // ノード: 位置は比率で定義し、リサイズで再計算
     const nodes = [
-      {id:'tweet', label:'投稿（ポスト）', color:'--neon-c1', pos:[0.08,0.52]},
-      {id:'uss', label:'USS（User Signal Service）\nユーザー行動信号', color:'--neon-c1', pos:[0.18,0.40]},
+      {id:'tweet', label:'投稿', color:'--neon-c1', pos:[0.08,0.52]},
+      {id:'uss', label:'反応を集める箱\n(いいね/返信など)', color:'--neon-c1', pos:[0.18,0.40]},
 
-      {id:'earlybird', label:'Earlybird（検索）\nIn-Network候補', color:'--neon-c4', pos:[0.32,0.26]},
-      {id:'uteg', label:'UTEG（User Tweet\nEntity Graph）', color:'--neon-c4', pos:[0.33,0.50]},
-      {id:'crmixer', label:'CR‑Mixer（候補混合/軽ランク）', color:'--neon-c4', pos:[0.33,0.70]},
-      {id:'frs', label:'FRS（Follow\nRecommendations）', color:'--neon-c4', pos:[0.24,0.82]},
+      {id:'earlybird', label:'フォロワーから拾う係', color:'--neon-c4', pos:[0.32,0.26]},
+      {id:'uteg', label:'つながりから拾う係', color:'--neon-c4', pos:[0.33,0.50]},
+      {id:'crmixer', label:'候補を混ぜる係', color:'--neon-c4', pos:[0.33,0.70]},
+      {id:'frs', label:'フォロー関連の候補', color:'--neon-c4', pos:[0.24,0.82]},
 
-      {id:'feat', label:'特徴量水和（~6000）\nGraph Feature/RepMgr', color:'--neon-c1', pos:[0.48,0.46]},
+      {id:'feat', label:'背景情報を足す', color:'--neon-c1', pos:[0.48,0.46]},
 
-      {id:'lightr', label:'Light Ranker（軽）', color:'--neon-c2', pos:[0.58,0.32]},
-      {id:'heavyr', label:'Heavy Ranker（重）', color:'--neon-c2', pos:[0.62,0.52]},
+      {id:'lightr', label:'一次ふるい', color:'--neon-c2', pos:[0.58,0.32]},
+      {id:'heavyr', label:'本審査', color:'--neon-c2', pos:[0.62,0.52]},
 
-      {id:'mixer', label:'Home Mixer（統合）', color:'--neon-c3', pos:[0.72,0.46]},
-      {id:'filters', label:'Visibility（可視性）\n重複/疲労/法令等', color:'--neon-c3', pos:[0.78,0.60]},
+      {id:'mixer', label:'編集デスク', color:'--neon-c3', pos:[0.72,0.46]},
+      {id:'filters', label:'ルールと整理', color:'--neon-c3', pos:[0.78,0.60]},
 
-      {id:'distribution', label:'配信（For You/通知/Explore）', color:'--neon-c4', pos:[0.86,0.40]},
-      {id:'users', label:'RealGraph/SimClusters\n（ネットワーク）', color:'--neon-c1', pos:[0.86,0.70]},
+      {id:'distribution', label:'配る（各タブへ）', color:'--neon-c4', pos:[0.86,0.40]},
+      {id:'users', label:'人のネットワーク', color:'--neon-c1', pos:[0.86,0.70]},
       {id:'buzz', label:'バズ（臨界）', color:'--warning', pos:[0.94,0.50]},
     ];
 
@@ -471,6 +477,40 @@
     layout();
 
     // ============= パーティクルシステム =============
+    // ノード説明（やさしい/専門）
+    const nodeInfoExpert = {
+      tweet:'ユーザーの新規投稿。テキスト/画像/動画/リンクなどが起点。',
+      uss:'User Signal Service: いいね/RT/返信/クリック/視聴/プロフィール訪問などの信号を集約し統一形式で提供。',
+      earlybird:'検索インデックス(Earlybird)。主にIn-Networkから高速に候補を取得。',
+      uteg:'User Tweet Entity Graph。ユーザー×ツイートの相互作用グラフを辿って候補を探索。',
+      crmixer:'CR‑Mixer。複数候補源を混合し軽ランク/フィルタを適用。',
+      frs:'Follow Recommendations Service。フォロー推薦経由の候補注入。',
+      feat:'特徴量水和。Graph Feature/Representation Manager等から多数の特徴を取得。',
+      lightr:'Light Ranker。予選段階の軽量スコアリング。',
+      heavyr:'Heavy Ranker。ニューラルモデルによる本ランキング。',
+      mixer:'Home Mixer。最終並べ替え/非ツイート要素の混在/カーソル等。',
+      filters:'Visibility/ヒューリスティクス。法令/品質/信頼/収益保護、重複/既視/疲労などの制御。',
+      distribution:'配信。For You/通知/Exploreなどの面へ露出。',
+      users:'ユーザーネットワーク(RealGraph/SimClusters)。二次反応・拡散源。',
+      buzz:'バズ状態。露出と反応が臨界に達した結果。'
+    };
+    const nodeInfoSimple = {
+      tweet:'新しい投稿が生まれる場所。',
+      uss:'いいね/リポスト/返信/クリックなど、反応をひとつに集める箱。',
+      earlybird:'フォロー関係を中心に、候補の投稿をすばやく拾う係。',
+      uteg:'「関係が近い人たち」の行動から候補を広げる係。',
+      crmixer:'いろいろな候補を混ぜて、軽いふるいにかける係。',
+      frs:'フォロー関連の情報から、出しどころを増やす係。',
+      feat:'投稿や作者の背景情報を集めて、文脈を足す工程。',
+      lightr:'大まかに良さそうなものを選ぶ一次ふるい。',
+      heavyr:'機械学習でしっかり採点する本審査。',
+      mixer:'全体の見せ方を整える編集デスク。',
+      filters:'重複/見飽き/安全などのルールで整理する。',
+      distribution:'For You・通知・発見など、出す場所に届ける。',
+      users:'人と人のつながり。反応が次の人へ伝わる土台。',
+      buzz:'反応が連鎖して、広がりが止まりにくくなった状態。'
+    };
+    let nodeInfo = nodeInfoSimple;
     const particles=[];
     function spawnOnEdge(e, k=1){
       const t0 = Math.random()*0.2; // ランダム位置
@@ -483,8 +523,30 @@
       return {x,y};
     }
 
-    // ============= フェーズ定義 =============
-    const phases = [
+    // ============= フェーズ定義（やさしい/専門） =============
+    const phasesSimple = [
+      {name:'準備', key:'init', desc:'シミュレーションの準備。描画の下ごしらえをします。', boost: {all:0.3}},
+      {name:'投稿が生まれる', key:'post', desc:'だれかが投稿。最初の反応が「反応の箱」に入り始めます。',
+        boost:{ edges:['tweet->uss'], amount:2.2 } },
+      {name:'最初の反応が集まる', key:'early', desc:'いいね/リポスト/返信/クリックなどの反応が集まり、つながり情報も活性化します。',
+        boost:{ edges:['uss->earlybird','uss->uteg','uss->crmixer','uss->frs'], amount:1.6 } },
+      {name:'候補をかき集める', key:'cand', desc:'フォロワー側/関係の近い人側などから投稿候補を広く集め、まず混ぜます。',
+        boost:{ edges:['earlybird->lightr','uteg->lightr','crmixer->lightr','frs->lightr'], amount:1.8 } },
+      {name:'背景情報を足す', key:'feat', desc:'作者や内容の背景、関心の近さなど多くの情報を集め、判断材料をそろえます。',
+        boost:{ edges:['lightr->feat'], amount:1.8 } },
+      {name:'点数をつける', key:'rank', desc:'軽いふるいで絞ってから、機械学習で本格的に採点します。',
+        boost:{ edges:['feat->heavyr','heavyr->mixer'], amount:2.0 } },
+      {name:'並べ替えとルール', key:'mix', desc:'同じ作者の連続や重複、見飽き、安全配慮などのルールを当てます。',
+        boost:{ edges:['mixer->filters'], amount:2.0 } },
+      {name:'配る', key:'dist', desc:'For You・通知・発見などの面に届け、次の反応へつなげます。',
+        boost:{ edges:['filters->distribution','distribution->users'], amount:2.3 } },
+      {name:'広がる', key:'spread', desc:'人のつながりを伝って広がり、話題が移動します。',
+        boost:{ edges:['users->buzz','users->uss','buzz->distribution'], amount:2.5 } },
+      {name:'バズに至る', key:'buzz', desc:'反応が連鎖しやすくなり、広がりが加速した状態です。',
+        boost:{ all:3.4 } },
+    ];
+
+    const phasesExpert = [
       {name:'準備（シミュレーション起動）', key:'init', desc:'シミュレーションの準備段階。背景グリッドや基礎光を生成。コンテンツの投稿イベントそのものではありません。', boost: {all:0.3}},
       {name:'投稿（ポスト）', key:'post', desc:'ユーザーが新規投稿。USS（User Signal Service）に初期信号が流れ始めます。',
         boost:{ edges:['tweet->uss'], amount:2.2 } },
@@ -506,6 +568,59 @@
         boost:{ all:3.4 } },
     ];
 
+    let phases = phasesSimple; // デフォルトは「やさしい」
+
+    // ノードラベルと凡例テキスト（やさしい/専門）
+    const nodeLabels = {
+      simple: {
+        tweet:'投稿',
+        uss:'反応を集める箱\n(いいね/返信など)',
+        earlybird:'フォロワーから拾う係',
+        uteg:'つながりから拾う係',
+        crmixer:'候補を混ぜる係',
+        frs:'フォロー関連の候補',
+        feat:'背景情報を足す',
+        lightr:'一次ふるい',
+        heavyr:'本審査',
+        mixer:'編集デスク',
+        filters:'ルールと整理',
+        distribution:'配る（各タブへ）',
+        users:'人のネットワーク',
+        buzz:'バズ（臨界）'
+      },
+      expert: {
+        tweet:'投稿（ポスト）',
+        uss:'USS（User Signal Service）\nユーザー行動信号',
+        earlybird:'Earlybird（検索）\nIn-Network候補',
+        uteg:'UTEG（User Tweet\nEntity Graph）',
+        crmixer:'CR‑Mixer（候補混合/軽ランク）',
+        frs:'FRS（Follow\nRecommendations）',
+        feat:'特徴量水和（~6000）\nGraph Feature/RepMgr',
+        lightr:'Light Ranker（軽）',
+        heavyr:'Heavy Ranker（重）',
+        mixer:'Home Mixer（統合）',
+        filters:'Visibility（可視性）\n重複/疲労/法令等',
+        distribution:'配信（For You/通知/Explore）',
+        users:'RealGraph/SimClusters\n（ネットワーク）',
+        buzz:'バズ（臨界）'
+      }
+    };
+
+    const legendText = {
+      simple: {
+        data: '反応を集める箱（USS / UUA）',
+        cand: '候補を集めて混ぜる（Earlybird / UTEG / CR‑Mixer / FRS）',
+        rank: '一次ふるい / 本審査（Light / Heavy）',
+        mix: '見せ方とルール（Home Mixer / Visibility）'
+      },
+      expert: {
+        data: 'データ/信号: USS（User Signal Service：ユーザー行動信号の集約）・UUA 等',
+        cand: '候補生成: Earlybird（検索）, UTEG（User Tweet Entity Graph）, CR‑Mixer, FRS（Follow Recommendations Service）',
+        rank: 'ランキング: Light Ranker（軽）/ Heavy Ranker（重）',
+        mix: 'ミキシング/制御: Home Mixer（統合）, Visibility（可視性）, ヒューリスティクス'
+      }
+    };
+
     let phaseIndex = 0; let playing=false; let phaseTimer=0; let phaseDur=4500; // ms
     const badge = document.getElementById('phaseBadge');
     const flash = document.getElementById('phaseFlash');
@@ -514,12 +629,93 @@
     // タイムラインUI
     const tl = document.getElementById('timeline');
     const reader = document.getElementById('reader');
-    const items = phases.map((p,i)=>{
-      const el = document.createElement('div'); el.className='phaseItem';
-      el.innerHTML = `<div class="glow"></div><div>${i+1}. ${p.name}</div>`;
-      el.addEventListener('click',()=>{ setPhase(i,true); renderTimeline(); });
-      tl.appendChild(el); return el; });
+    let items = [];
+    function buildTimeline(){
+      tl.innerHTML = '';
+      items = phases.map((p,i)=>{
+        const el = document.createElement('div'); el.className='phaseItem';
+        el.innerHTML = `<div class="glow"></div><div>${i+1}. ${p.name}</div>`;
+        el.addEventListener('click',()=>{ setPhase(i,true); renderTimeline(); });
+        el.addEventListener('mouseenter', (ev)=> showTip(`${i+1}. ${p.name}`, p.desc, ev.clientX, ev.clientY));
+        el.addEventListener('mousemove', (ev)=> moveTip(ev.clientX, ev.clientY));
+        el.addEventListener('mouseleave', hideTip);
+        tl.appendChild(el); return el; });
+      renderTimeline();
+    }
     function renderTimeline(){ items.forEach((el,i)=> el.classList.toggle('active', i===phaseIndex)); }
+
+    // ============= ツールチップ（先に初期化しておく） =============
+    const tip = document.getElementById('tip');
+    const tipTitle = tip.querySelector('.title');
+    const tipBody = tip.querySelector('.body');
+    function showTip(title, body, x, y){
+      tipTitle.textContent = title; tipBody.textContent = body;
+      tip.style.display='block';
+      const pad = 14; const rect={w: tip.offsetWidth, h: tip.offsetHeight};
+      const nx = Math.min(window.innerWidth-rect.w-pad, x+16);
+      const ny = Math.min(window.innerHeight-rect.h-pad, y+16);
+      tip.style.left = nx+'px'; tip.style.top = ny+'px';
+    }
+    function moveTip(x,y){
+      if(tip.style.display==='none') return; const pad=14; const rect={w: tip.offsetWidth, h: tip.offsetHeight};
+      const nx = Math.min(window.innerWidth-rect.w-pad, x+16);
+      const ny = Math.min(window.innerHeight-rect.h-pad, y+16);
+      tip.style.left = nx+'px'; tip.style.top = ny+'px';
+    }
+    function hideTip(){ tip.style.display='none'; }
+
+    // ============= フェーズ別 参考コードリンク（先に定義） =============
+    const phaseRefs = {
+      init: [],
+      post: [
+        {label:'USS README', path:'user-signal-service/README.md'},
+        {label:'UUA README', path:'unified_user_actions/README.md'}
+      ],
+      early: [
+        {label:'USS README', path:'user-signal-service/README.md'},
+        {label:'RealGraph README', path:'src/scala/com/twitter/interaction_graph/README.md'}
+      ],
+      cand: [
+        {label:'Home Mixer README', path:'home-mixer/README.md'},
+        {label:'CR‑Mixer README', path:'cr-mixer/README.md'},
+        {label:'UTEG README', path:'src/scala/com/twitter/recos/user_tweet_entity_graph/README.md'},
+        {label:'TimelineRanker README', path:'timelineranker/README.md'},
+        {label:'FRS README', path:'follow-recommendations-service/README.md'}
+      ],
+      feat: [
+        {label:'Graph Feature Service', path:'graph-feature-service/README.md'},
+        {label:'Representation Manager', path:'representation-manager/README.md'},
+        {label:'Representation Scorer', path:'representation-scorer/README.md'}
+      ],
+      rank: [
+        {label:'ScoredTweetsModelScoringPipelineConfig.scala', path:'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/scoring_pipeline/ScoredTweetsModelScoringPipelineConfig.scala'}
+      ],
+      mix: [
+        {label:'ForYouScoredTweetsMixerPipelineConfig.scala', path:'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/for_you/ForYouScoredTweetsMixerPipelineConfig.scala'},
+        {label:'Visibilitylib README', path:'visibilitylib/README.md'}
+      ],
+      dist: [
+        {label:'Pushservice README', path:'pushservice/README.md'}
+      ],
+      spread: [
+        {label:'SimClusters‑ANN README', path:'simclusters-ann/README.md'},
+        {label:'Topic Social Proof README', path:'topic-social-proof/README.md'}
+      ],
+      buzz: [
+        {label:'Home Mixer README', path:'home-mixer/README.md'}
+      ]
+    };
+    function renderPhaseRefs(){
+      const list = document.getElementById('phaseRefList'); if(!list) return;
+      const p = phases[phaseIndex]; const arr = phaseRefs[p.key]||[];
+      list.innerHTML='';
+      arr.forEach(it=>{
+        const li=document.createElement('li');
+        const local = document.createElement('a'); local.href = '../'+it.path; local.target='_blank'; local.rel='noopener'; local.textContent=it.label+'（ローカル）';
+        const gh = document.createElement('a'); gh.href = 'https://github.com/kazuph/the-algorithm/tree/main/'+it.path; gh.target='_blank'; gh.rel='noopener'; gh.textContent='GitHub';
+        li.appendChild(local); li.appendChild(document.createTextNode(' / ')); li.appendChild(gh); list.appendChild(li);
+      });
+    }
 
     function setPhase(idx, manual=false){
       phaseIndex = clamp(idx,0,phases.length-1);
@@ -667,6 +863,8 @@
     const btnReset = document.getElementById('btnReset');
     const btnGlossary = document.getElementById('btnGlossary');
     const btnCodeNav = document.getElementById('btnCodeNav');
+    const vocabSimpleBtn = document.getElementById('vocabSimple');
+    const vocabExpertBtn = document.getElementById('vocabExpert');
     const modeForYou = document.getElementById('modeForYou');
     const modeFollowing = document.getElementById('modeFollowing');
     const modePush = document.getElementById('modePush');
@@ -682,6 +880,38 @@
     btnReset.addEventListener('click',()=>{ setPhase(0,true); playing=false; btnPlay.textContent='⏵ 再生'; });
     btnGlossary.addEventListener('click',()=>{ openGlossary(); });
     btnCodeNav.addEventListener('click',()=>{ openCodeNav(); });
+    // 用語レベル切替
+    let vocabMode = 'simple';
+    function setVocabMode(m){
+      vocabMode = (m==='expert') ? 'expert' : 'simple';
+      // ボタンのUI状態
+      vocabSimpleBtn.classList.toggle('on', vocabMode==='simple');
+      vocabExpertBtn.classList.toggle('on', vocabMode==='expert');
+      vocabSimpleBtn.setAttribute('aria-selected', vocabMode==='simple');
+      vocabExpertBtn.setAttribute('aria-selected', vocabMode==='expert');
+      // ノードラベル更新
+      const map = nodeLabels[vocabMode];
+      nodes.forEach(n=>{ if(map[n.id]) n.label = map[n.id]; });
+      layout();
+      // ノード説明辞書切替
+      nodeInfo = (vocabMode==='simple') ? nodeInfoSimple : nodeInfoExpert;
+      // フェーズデータ切替
+      phases = (vocabMode==='simple') ? phasesSimple : phasesExpert;
+      // 凡例の文言
+      const lg = legendText[vocabMode];
+      const ld = document.getElementById('legend-data'); if(ld) ld.innerHTML = `<span class="dot c1"></span> ${lg.data}`;
+      const lc = document.getElementById('legend-cand'); if(lc) lc.innerHTML = `<span class="dot c4"></span> ${lg.cand}`;
+      const lr = document.getElementById('legend-rank'); if(lr) lr.innerHTML = `<span class="dot c2"></span> ${lg.rank}`;
+      const lm = document.getElementById('legend-mix'); if(lm) lm.innerHTML = `<span class="dot c3"></span> ${lg.mix}`;
+      // タイムライン再構築とフェーズ再表示
+      const keep = clamp(phaseIndex,0,phases.length-1);
+      buildTimeline();
+      setPhase(keep, true);
+      // 保存
+      try{ localStorage.setItem('vocabMode', vocabMode); }catch(_){ }
+    }
+    vocabSimpleBtn.addEventListener('click',()=> setVocabMode('simple'));
+    vocabExpertBtn.addEventListener('click',()=> setVocabMode('expert'));
     btnSavePng.addEventListener('click',()=>{
       try { const url = canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=url; a.download='buzz-flow.png'; a.click(); } catch(e){}
     });
@@ -762,36 +992,13 @@
     });
     updateReach();
 
+    // 用語モード初期化（デフォルト: やさしい）
+    try{ setVocabMode(localStorage.getItem('vocabMode')||'simple'); }catch(_){ setVocabMode('simple'); }
+
     // 初期フェーズ
     setPhase(0,true);
 
-    // ============= ツールチップ =============
-    const tip = document.getElementById('tip');
-    const tipTitle = tip.querySelector('.title');
-    const tipBody = tip.querySelector('.body');
-    function showTip(title, body, x, y){
-      tipTitle.textContent = title; tipBody.textContent = body;
-      tip.style.display='block';
-      const pad = 14; const rect={w: tip.offsetWidth, h: tip.offsetHeight};
-      const nx = Math.min(window.innerWidth-rect.w-pad, x+16);
-      const ny = Math.min(window.innerHeight-rect.h-pad, y+16);
-      tip.style.left = nx+'px'; tip.style.top = ny+'px';
-    }
-    function moveTip(x,y){
-      if(tip.style.display==='none') return; const pad=14; const rect={w: tip.offsetWidth, h: tip.offsetHeight};
-      const nx = Math.min(window.innerWidth-rect.w-pad, x+16);
-      const ny = Math.min(window.innerHeight-rect.h-pad, y+16);
-      tip.style.left = nx+'px'; tip.style.top = ny+'px';
-    }
-    function hideTip(){ tip.style.display='none'; }
-
-    // タイムライン: ホバーで説明
-    items.forEach((el,i)=>{
-      const p = phases[i];
-      el.addEventListener('mouseenter', (ev)=> showTip(`${i+1}. ${p.name}`, p.desc, ev.clientX, ev.clientY));
-      el.addEventListener('mousemove', (ev)=> moveTip(ev.clientX, ev.clientY));
-      el.addEventListener('mouseleave', hideTip);
-    });
+    // タイムライン: ホバーで説明（buildTimeline内で設定）
 
     // 読みもの: summaryクリックで該当フェーズへ
     reader?.querySelectorAll('summary[data-phase]')?.forEach(sm=>{
@@ -801,22 +1008,6 @@
     });
 
     // ============= ノード説明とドラッグ =============
-    const nodeInfo = {
-      tweet:'ユーザーの新規投稿。テキスト/画像/動画/リンクなどが起点。',
-      uss:'User Signal Service: いいね/RT/返信/クリック/視聴/プロフィール訪問などの信号を集約し統一形式で提供。',
-      earlybird:'検索インデックス(Earlybird)。主にIn-Networkから高速に候補を取得。',
-      uteg:'User Tweet Entity Graph。ユーザー×ツイートの相互作用グラフを辿って候補を探索。',
-      crmixer:'CR‑Mixer。複数候補源を混合し軽ランク/フィルタを適用。',
-      frs:'Follow Recommendations Service。フォロー推薦経由の候補注入。',
-      feat:'特徴量水和。Graph Feature/Representation Manager等から多数の特徴を取得。',
-      lightr:'Light Ranker。予選段階の軽量スコアリング。',
-      heavyr:'Heavy Ranker。ニューラルモデルによる本ランキング。',
-      mixer:'Home Mixer。最終並べ替え/非ツイート要素の混在/カーソル等。',
-      filters:'Visibility/ヒューリスティクス。法令/品質/信頼/収益保護、重複/既視/疲労などの制御。',
-      distribution:'配信。For You/通知/Exploreなどの面へ露出。',
-      users:'ユーザーネットワーク(RealGraph/SimClusters)。二次反応・拡散源。',
-      buzz:'バズ状態。露出と反応が臨界に達した結果。'
-    };
 
     let hoverNode=null; let dragNode=null; let dragging=false;
     canvas.addEventListener('pointermove', (ev)=>{
@@ -858,59 +1049,6 @@
     }
     loadNodePositions();
 
-    // ============= フェーズ別 参考コードリンク =============
-    const phaseRefs = {
-      init: [],
-      post: [
-        {label:'USS README', path:'user-signal-service/README.md'},
-        {label:'UUA README', path:'unified_user_actions/README.md'}
-      ],
-      early: [
-        {label:'USS README', path:'user-signal-service/README.md'},
-        {label:'RealGraph README', path:'src/scala/com/twitter/interaction_graph/README.md'}
-      ],
-      cand: [
-        {label:'Home Mixer README', path:'home-mixer/README.md'},
-        {label:'CR‑Mixer README', path:'cr-mixer/README.md'},
-        {label:'UTEG README', path:'src/scala/com/twitter/recos/user_tweet_entity_graph/README.md'},
-        {label:'TimelineRanker README', path:'timelineranker/README.md'},
-        {label:'FRS README', path:'follow-recommendations-service/README.md'}
-      ],
-      feat: [
-        {label:'Graph Feature Service', path:'graph-feature-service/README.md'},
-        {label:'Representation Manager', path:'representation-manager/README.md'},
-        {label:'Representation Scorer', path:'representation-scorer/README.md'}
-      ],
-      rank: [
-        {label:'ScoredTweetsModelScoringPipelineConfig.scala', path:'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/scored_tweets/scoring_pipeline/ScoredTweetsModelScoringPipelineConfig.scala'}
-      ],
-      mix: [
-        {label:'ForYouScoredTweetsMixerPipelineConfig.scala', path:'home-mixer/server/src/main/scala/com/twitter/home_mixer/product/for_you/ForYouScoredTweetsMixerPipelineConfig.scala'},
-        {label:'Visibilitylib README', path:'visibilitylib/README.md'}
-      ],
-      dist: [
-        {label:'Pushservice README', path:'pushservice/README.md'}
-      ],
-      spread: [
-        {label:'SimClusters‑ANN README', path:'simclusters-ann/README.md'},
-        {label:'Topic Social Proof README', path:'topic-social-proof/README.md'}
-      ],
-      buzz: [
-        {label:'Home Mixer README', path:'home-mixer/README.md'}
-      ]
-    };
-    function renderPhaseRefs(){
-      const list = document.getElementById('phaseRefList'); if(!list) return;
-      const p = phases[phaseIndex]; const arr = phaseRefs[p.key]||[];
-      list.innerHTML='';
-      arr.forEach(it=>{
-        const li=document.createElement('li');
-        const local = document.createElement('a'); local.href = '../'+it.path; local.target='_blank'; local.rel='noopener'; local.textContent=it.label+'（ローカル）';
-        const gh = document.createElement('a'); gh.href = 'https://github.com/kazuph/the-algorithm/tree/main/'+it.path; gh.target='_blank'; gh.rel='noopener'; gh.textContent='GitHub';
-        li.appendChild(local); li.appendChild(document.createTextNode(' / ')); li.appendChild(gh); list.appendChild(li);
-      });
-    }
-    renderPhaseRefs();
 
     // ============= シグナル探索（RETREIVAL_SIGNALS.md要約） =============
     const signalsData = [
