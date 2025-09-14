@@ -726,7 +726,10 @@
       flash.classList.add('on'); badge.classList.add('on');
       setTimeout(()=>{flash.classList.remove('on');badge.classList.remove('on');}, 650);
       // フェーズ遷移: 光の流入 (周辺から中心へのフレア)
-      for(let i=0;i<60;i++) spawnRadialBurst();
+      // フェーズ0（準備）ではバーストを発生させない
+      if(phaseIndex>0){ for(let i=0;i<60;i++) spawnRadialBurst(); }
+      // 準備段階に戻ったら既存パーティクルをクリア
+      if(phaseIndex===0){ particles.length = 0; }
       if(manual) lastTime = performance.now();
       renderPhaseRefs();
     }
@@ -785,6 +788,28 @@
         }
       }
 
+      // 現在フェーズまでに許可されたエッジ集合を作成
+      let allowAll = false;
+      const allowedKeys = new Set();
+      if(phaseIndex===0){
+        // 準備フェーズは発光のみ（後続で粒子発生は抑制）
+      } else {
+        for(let i=1;i<=phaseIndex;i++){
+          const bp = phases[i]?.boost;
+          if(!bp) continue;
+          if(bp.all){ allowAll = true; break; }
+          (bp.edges||[]).forEach(k=>allowedKeys.add(k));
+        }
+      }
+      const activeEdges = allowAll ? edges : edges.filter(e=> allowedKeys.has(`${e.a.id}->${e.b.id}`));
+      // 非アクティブなエッジの可視グローを弱める
+      if(!allowAll){
+        for(const e of edges){
+          const k = `${e.a.id}->${e.b.id}`;
+          if(!allowedKeys.has(k)) e.intensity *= (phaseIndex===0 ? 0 : 0.15);
+        }
+      }
+
       // エッジのグローライン
       for(const e of edges){
         const grad = ctx.createLinearGradient(e.a.x,e.a.y,e.b.x,e.b.y);
@@ -816,13 +841,16 @@
         ctx.globalCompositeOperation='source-over';
       }
 
-      // パーティクル発生
+      // パーティクル発生（フェーズ0では発生させない。許可エッジのみに限定）
       const baseRate = 80; // /sec 全体
-      const rate = baseRate*(0.6 + phaseIndex*0.25) * (0.6 + reachMul*0.4);
+      const canEmit = phaseIndex>0 && activeEdges.length>0;
+      const rate = (canEmit? baseRate : 0) * (0.6 + phaseIndex*0.25) * (0.6 + reachMul*0.4);
       const emitCount = rate*dt;
-      for(let i=0;i<emitCount;i++){
-        const e = edges[Math.floor(Math.random()*edges.length)];
-        if(Math.random() < e.intensity) spawnOnEdge(e);
+      if(canEmit){
+        for(let i=0;i<emitCount;i++){
+          const e = activeEdges[Math.floor(Math.random()*activeEdges.length)];
+          if(Math.random() < e.intensity) spawnOnEdge(e);
+        }
       }
       // パーティクル更新/描画
       ctx.globalCompositeOperation = 'lighter';
